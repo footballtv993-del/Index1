@@ -1,54 +1,47 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HypeOracle</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background: #1a1b1e; color: white; text-align: center; padding: 20px; margin: 0; }
-        .card { background: #25262b; border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #373a40; }
-        input { width: 100%; padding: 15px; border-radius: 12px; border: none; background: #141517; color: white; font-size: 18px; margin: 15px 0; box-sizing: border-box; }
-        .btn { width: 100%; padding: 18px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn-yes { background: #4caf50; color: white; }
-        .btn-no { background: #f44336; color: white; }
-        #success { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:#1a1b1e; align-items:center; justify-content:center; flex-direction:column; }
+        body { font-family: sans-serif; background: #1a1b1e; color: white; padding: 20px; }
+        .card { background: #25262b; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #373a40; }
+        .btn { width: 48%; padding: 10px; border-radius: 8px; border: none; font-weight: bold; color: white; cursor: pointer; }
+        .btn-yes { background: #4caf50; }
+        .btn-no { background: #f44336; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 8px; border: none; background: #141517; color: white; }
     </style>
 </head>
 <body>
-    <h1>HypeOracle</h1>
-    <div class="card">
-        <label>Сумма ставки (TON)</label>
-        <input type="number" id="amount" value="0.5" min="0.2" step="0.1">
-    </div>
-    <button class="btn btn-yes" onclick="sendToBot(true)">СТАВИТЬ НА ДА</button>
-    <button class="btn btn-no" onclick="sendToBot(false)">СТАВИТЬ НА НЕТ</button>
-
-    <div id="success">
-        <h2 style="color: #4caf50;">✅ Принято!</h2>
-        <p>Закрываем окно...</p>
-    </div>
+    <h2>Список событий</h2>
+    <div id="list"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        function sendToBot(outcome) {
-            const amount = document.getElementById('amount').value;
-            if (amount < 0.2) {
-                tg.showAlert("Минимальная ставка 0.2 TON");
-                return;
-            }
+        // В идеале этот список должен приходить от бота или API
+        const events = [
+            { id: 1, title: "TON будет стоить $10?" },
+            { id: 2, title: "Дуров купит Twitter?" }
+        ];
 
-            const data = JSON.stringify({ amount: amount, outcome: outcome });
-            
-            // Сначала показываем успех
-            document.getElementById('success').style.display = 'flex';
-            
-            // Отправляем данные боту (это закроет приложение автоматически)
-            setTimeout(() => {
-                tg.sendData(data);
-            }, 500);
+        const container = document.getElementById('list');
+        events.forEach(e => {
+            container.innerHTML += `
+                <div class="card">
+                    <div>${e.title}</div>
+                    <input type="number" id="amt-${e.id}" value="0.5" step="0.1">
+                    <button class="btn btn-yes" onclick="bet(${e.id}, true)">ДА</button>
+                    <button class="btn btn-no" onclick="bet(${e.id}, false)">НЕТ</button>
+                </div>
+            `;
+        });
+
+        function bet(id, outcome) {
+            const amount = document.getElementById(`amt-${id}`).value;
+            tg.sendData(JSON.stringify({ eventId: id, amount, outcome }));
         }
     </script>
 </body>
