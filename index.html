@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HypeOracle DApp</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root { --tg-theme-bg: #1a1b1e; --tg-theme-text: #ffffff; --accent-green: #4caf50; --accent-red: #f44336; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+               background-color: var(--tg-theme-bg); color: var(--tg-theme-text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .header { margin-bottom: 30px; }
+        h1 { font-size: 28px; margin: 0; color: #58a6ff; }
+        
+        .pool-container { display: flex; width: 100%; gap: 15px; margin-bottom: 25px; }
+        .pool-card { flex: 1; background: #25262b; padding: 15px; border-radius: 16px; border: 1px solid #373a40; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .pool-label { font-size: 12px; text-transform: uppercase; opacity: 0.7; margin-bottom: 5px; }
+        .pool-value { font-size: 20px; font-weight: bold; }
+
+        .input-group { width: 100%; margin-bottom: 25px; }
+        .input-label { display: block; margin-bottom: 8px; font-size: 14px; text-align: left; }
+        input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid #373a40; background: #141517; color: white; font-size: 16px; box-sizing: border-box; outline: none; transition: border-color 0.3s; }
+        input:focus { border-color: #58a6ff; }
+
+        .btn-group { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+        .btn { padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-yes { background: var(--accent-green); color: white; }
+        .btn-no { background: var(--accent-red); color: white; }
+
+        /* Анимация успеха */
+        #success-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--tg-theme-bg); 
+                           z-index: 100; flex-direction: column; align-items: center; justify-content: center; }
+        .checkmark { width: 80px; height: 80px; border-radius: 50%; display: block; stroke-width: 2; stroke: #fff; stroke-miterlimit: 10; 
+                     box-shadow: inset 0px 0px 0px var(--accent-green); animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both; background: var(--accent-green); }
+        @keyframes fill { 100% { box-shadow: inset 0px 0px 0px 40px var(--accent-green); } }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>HypeOracle</h1></div>
+    
+    <div class="pool-container">
+        <div class="pool-card">
+            <div class="pool-label">ДА (Pool)</div>
+            <div id="yes-pool" class="pool-value" style="color: var(--accent-green);">--</div>
+        </div>
+        <div class="pool-card">
+            <div class="pool-label">НЕТ (Pool)</div>
+            <div id="no-pool" class="pool-value" style="color: var(--accent-red);">--</div>
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label class="input-label">Сумма ставки (TON)</label>
+        <input type="number" id="bet-amount" value="0.5" min="0.2" step="0.1">
+    </div>
+    
+    <div class="btn-group">
+        <button class="btn btn-yes" onclick="processSelection(true)">СТАВИТЬ НА ДА</button>
+        <button class="btn btn-no" onclick="processSelection(false)">СТАВИТЬ НА НЕТ</button>
+    </div>
+
+    <div id="success-overlay">
+        <div class="checkmark"></div>
+        <h2 style="margin-top: 20px;">Готово!</h2>
+        <p>Проверьте сообщение от бота</p>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.hide();
+
+        function processSelection(outcome) {
+            const amount = document.getElementById('bet-amount').value;
+            
+            if (amount < 0.2) {
+                tg.showAlert("Минимальная ставка — 0.2 TON");
+                return;
+            }
+
+            // Показываем анимацию успеха
+            document.getElementById('success-overlay').style.display = 'flex';
+            tg.HapticFeedback.notificationOccurred('success');
+
+            // Отправляем данные боту через 1.5 секунды и закрываем
+            setTimeout(() => {
+                tg.sendData(JSON.stringify({ amount, outcome }));
+                tg.close();
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
