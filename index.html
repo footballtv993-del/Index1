@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hype Oracle Live</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -24,7 +23,9 @@
         }
         h2 { color: #0088cc; margin-bottom: 20px; font-size: 20px; line-height: 1.2; }
         
-        /* СТИЛИ ИНПУТА: ЧЕРНЫЕ ЦИФРЫ НА БЕЛОМ ФОНЕ */
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; font-size: 14px; }
+        
+        /* СТИЛИ ИНПУТА */
         .input-box { margin: 20px 0; }
         input {
             width: 100%;
@@ -33,7 +34,7 @@
             border-radius: 15px;
             background-color: #ffffff !important;
             color: #000000 !important;
-            -webkit-text-fill-color: #000000 !important; /* Важно для iPhone */
+            -webkit-text-fill-color: #000000 !important;
             font-size: 30px !important;
             font-weight: 900;
             text-align: center;
@@ -41,8 +42,6 @@
             box-sizing: border-box;
         }
 
-        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; font-size: 14px; }
-        
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         button {
             padding: 18px; border-radius: 15px; border: none;
@@ -63,8 +62,8 @@
         <h2 id="event-title">Дуров купит новенькую Волгу до конца 2025?</h2>
         
         <div class="stats">
-            <span id="stat-yes" style="color: #34c759;">ДА: --%</span>
-            <span id="stat-no" style="color: #ff3b30;">НЕТ: --%</span>
+            <span id="stat-yes" style="color: #34c759;">ДА: 50%</span>
+            <span id="stat-no" style="color: #ff3b30;">НЕТ: 50%</span>
         </div>
 
         <div class="input-box">
@@ -88,42 +87,59 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Конфигурация
         const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
         const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
 
-        // Инициализация TonWeb с твоим ключом
-        const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC', {apiKey: API_KEY}));
-
         async function sync() {
             try {
-                // Вызываем метод контракта get_event для события №1
-                const res = await tonweb.call(CONTRACT, 'get_event', [['num', 1]]);
-                
-                if (res && res.stack) {
-                    // Парсим значения из стека (Tact возвращает числа)
-                    const yesNano = BigInt(res.stack[0][1]);
-                    const noNano = BigInt(res.stack[1][1]);
+                const response = await fetch('https://toncenter.com/api/v2/runGetMethod', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({
+                        address: CONTRACT,
+                        method: 'get_event',
+                        stack: [['num', 1]]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.ok && data.result.stack) {
+                    const stack = data.result.stack;
+                    
+                    const yesNano = BigInt(stack[0][1]);
+                    const noNano = BigInt(stack[1][1]);
                     
                     const yes = Number(yesNano) / 1e9;
                     const no = Number(noNano) / 1e9;
                     const total = yes + no;
-                    const pool = total * 0.9;
 
-                    const yesP = total > 0 ? Math.round((yes / total) * 100) : 50;
+                    // Если ставок еще нет
+                    if (total === 0) {
+                        document.getElementById('stat-yes').innerText = "ДА: 50%";
+                        document.getElementById('stat-no').innerText = "НЕТ: 50%";
+                        document.getElementById('c-yes').innerText = "x1.90";
+                        document.getElementById('c-no').innerText = "x1.90";
+                        return;
+                    }
+
+                    const pool = total * 0.9;
+                    const yesP = Math.round((yes / total) * 100);
                     const noP = 100 - yesP;
 
-                    const cYes = yes > 0 ? (pool / yes).toFixed(2) : "1.90";
-                    const cNo = no > 0 ? (pool / no).toFixed(2) : "1.90";
+                    const cYes = yes > 0 ? (pool / yes).toFixed(2) : "0.00";
+                    const cNo = no > 0 ? (pool / no).toFixed(2) : "0.00";
 
-                    // Обновляем текст на экране
                     document.getElementById('stat-yes').innerText = `ДА: ${yesP}%`;
                     document.getElementById('stat-no').innerText = `НЕТ: ${noP}%`;
                     document.getElementById('c-yes').innerText = `x${cYes}`;
                     document.getElementById('c-no').innerText = `x${cNo}`;
                 }
             } catch (e) {
-                console.error("Ошибка при получении данных:", e);
+                console.error("Sync Error:", e);
             }
         }
 
@@ -131,7 +147,6 @@
             const val = document.getElementById('amount').value;
             if (val < 0.1) return tg.showAlert("Минимальная ставка 0.1 TON");
 
-            // Отправляем данные в бота
             tg.sendData(JSON.stringify({
                 eventId: 1,
                 outcome: outcome,
@@ -140,9 +155,8 @@
             tg.close();
         }
 
-        // Запуск синхронизации
         sync();
-        setInterval(sync, 10000); // Раз в 10 секунд
+        setInterval(sync, 10000);
     </script>
 </body>
 </html>
