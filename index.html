@@ -1,48 +1,18 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body { font-family: sans-serif; background: #1a1b1e; color: white; padding: 20px; }
-        .card { background: #25262b; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #373a40; }
-        .btn { width: 48%; padding: 10px; border-radius: 8px; border: none; font-weight: bold; color: white; cursor: pointer; }
-        .btn-yes { background: #4caf50; }
-        .btn-no { background: #f44336; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 8px; border: none; background: #141517; color: white; }
-    </style>
-</head>
-<body>
-    <h2>Список событий</h2>
-    <div id="list"></div>
+// Функция для отображения "Живых" данных
+async function updateStats(eventId) {
+    // 1. Вызываем метод контракта через любой API провайдер (Toncenter/Tonapi)
+    // 2. Получаем totalYes и totalNo
+    
+    const total = totalYes + totalNo;
+    const yesPerc = total > 0 ? (totalYes / total * 100).toFixed(0) : 50;
+    const noPerc = 100 - yesPerc;
+    
+    // Коэффициенты (фонд = 90% от общего)
+    const prizePool = total * 0.9;
+    const coeffYes = totalYes > 0 ? (prizePool / totalYes).toFixed(2) : "1.90";
+    const coeffNo = totalNo > 0 ? (prizePool / totalNo).toFixed(2) : "1.90";
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
-        // В идеале этот список должен приходить от бота или API
-        const events = [
-            { id: 1, title: "TON будет стоить $10?" },
-            { id: 2, title: "Дуров купит Twitter?" }
-        ];
-
-        const container = document.getElementById('list');
-        events.forEach(e => {
-            container.innerHTML += `
-                <div class="card">
-                    <div>${e.title}</div>
-                    <input type="number" id="amt-${e.id}" value="0.5" step="0.1">
-                    <button class="btn btn-yes" onclick="bet(${e.id}, true)">ДА</button>
-                    <button class="btn btn-no" onclick="bet(${e.id}, false)">НЕТ</button>
-                </div>
-            `;
-        });
-
-        function bet(id, outcome) {
-            const amount = document.getElementById(`amt-${id}`).value;
-            tg.sendData(JSON.stringify({ eventId: id, amount, outcome }));
-        }
-    </script>
-</body>
-</html>
+    // Обновляем HTML элементы
+    document.getElementById(`perc-yes-${eventId}`).innerText = `${yesPerc}%`;
+    document.getElementById(`coeff-yes-${eventId}`).innerText = `x${coeffYes}`;
+}
