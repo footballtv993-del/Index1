@@ -22,51 +22,53 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             text-align: center;
         }
-        h2 { color: #0088cc; margin-bottom: 20px; font-size: 22px; }
+        h2 { color: #0088cc; margin-bottom: 20px; font-size: 20px; line-height: 1.2; }
         
-        /* Стили ввода: ЧЕРНЫЕ ЦИФРЫ НА БЕЛОМ */
+        /* СТИЛИ ИНПУТА: ЧЕРНЫЕ ЦИФРЫ НА БЕЛОМ ФОНЕ */
         .input-box { margin: 20px 0; }
         input {
             width: 100%;
             height: 60px;
-            border: 2px solid #0088cc;
+            border: 3px solid #0088cc;
             border-radius: 15px;
             background-color: #ffffff !important;
             color: #000000 !important;
-            -webkit-text-fill-color: #000000 !important; /* Исправление для iOS */
-            font-size: 32px !important;
+            -webkit-text-fill-color: #000000 !important; /* Важно для iPhone */
+            font-size: 30px !important;
             font-weight: 900;
             text-align: center;
             outline: none;
             box-sizing: border-box;
         }
 
-        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; }
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; font-size: 14px; }
         
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         button {
             padding: 18px; border-radius: 15px; border: none;
             color: #fff; font-size: 18px; font-weight: bold; cursor: pointer;
-            transition: transform 0.1s;
+            transition: transform 0.1s ease;
         }
         .btn-yes { background: #34c759; }
         .btn-no { background: #ff3b30; }
         button:active { transform: scale(0.95); }
-        .small-txt { display: block; font-size: 12px; font-weight: normal; margin-top: 5px; opacity: 0.9; }
+        
+        .small-txt { display: block; font-size: 11px; font-weight: normal; margin-top: 5px; opacity: 0.9; }
+        .footer { margin-top: 15px; font-size: 10px; color: #888; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2 id="event-title">Загрузка данных...</h2>
+        <h2 id="event-title">Дуров купит новенькую Волгу до конца 2025?</h2>
         
         <div class="stats">
-            <span id="stat-yes">ДА: --%</span>
-            <span id="stat-no">НЕТ: --%</span>
+            <span id="stat-yes" style="color: #34c759;">ДА: --%</span>
+            <span id="stat-no" style="color: #ff3b30;">НЕТ: --%</span>
         </div>
 
         <div class="input-box">
-            <div style="font-size: 12px; color: #888; margin-bottom: 5px;">ВАША СТАВКА (TON)</div>
+            <div style="font-size: 11px; color: #888; margin-bottom: 5px; font-weight: bold;">ВАША СТАВКА (TON)</div>
             <input type="number" id="amount" value="0.1" step="0.1" min="0.1">
         </div>
 
@@ -78,49 +80,58 @@
                 НЕТ <span class="small-txt" id="c-no">x1.90</span>
             </button>
         </div>
+        
+        <div class="footer">Данные обновляются автоматически каждые 10 секунд</div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Конфигурация
+        const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
         const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
-        const tonweb = new TonWeb(new TonWeb.HttpProvider('https://mainnet.tonhubapi.com/jsonRPC'));
+
+        // Инициализация TonWeb с твоим ключом
+        const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC', {apiKey: API_KEY}));
 
         async function sync() {
             try {
+                // Вызываем метод контракта get_event для события №1
                 const res = await tonweb.call(CONTRACT, 'get_event', [['num', 1]]);
-                if (!res || !res.stack) return;
-
-                // Функция безопасного извлечения BigInt
-                const getVal = (item) => item[0] === 'num' ? BigInt(item[1]) : BigInt(0);
-
-                const yesNano = getVal(res.stack[0]);
-                const noNano = getVal(res.stack[1]);
                 
-                const yes = Number(yesNano) / 1e9;
-                const no = Number(noNano) / 1e9;
-                const total = yes + no;
-                const pool = total * 0.9;
+                if (res && res.stack) {
+                    // Парсим значения из стека (Tact возвращает числа)
+                    const yesNano = BigInt(res.stack[0][1]);
+                    const noNano = BigInt(res.stack[1][1]);
+                    
+                    const yes = Number(yesNano) / 1e9;
+                    const no = Number(noNano) / 1e9;
+                    const total = yes + no;
+                    const pool = total * 0.9;
 
-                const yesP = total > 0 ? Math.round((yes / total) * 100) : 50;
-                const noP = 100 - yesP;
+                    const yesP = total > 0 ? Math.round((yes / total) * 100) : 50;
+                    const noP = 100 - yesP;
 
-                const cYes = yes > 0 ? (pool / yes).toFixed(2) : "1.90";
-                const cNo = no > 0 ? (pool / no).toFixed(2) : "1.90";
+                    const cYes = yes > 0 ? (pool / yes).toFixed(2) : "1.90";
+                    const cNo = no > 0 ? (pool / no).toFixed(2) : "1.90";
 
-                // Обновление текста
-                document.getElementById('event-title').innerText = "Дуров купит Волгу?";
-                document.getElementById('stat-yes').innerText = `ДА: ${yesP}%`;
-                document.getElementById('stat-no').innerText = `НЕТ: ${noP}%`;
-                document.getElementById('c-yes').innerText = `x${cYes}`;
-                document.getElementById('c-no').innerText = `x${cNo}`;
-
-            } catch (e) { console.error("Sync Error:", e); }
+                    // Обновляем текст на экране
+                    document.getElementById('stat-yes').innerText = `ДА: ${yesP}%`;
+                    document.getElementById('stat-no').innerText = `НЕТ: ${noP}%`;
+                    document.getElementById('c-yes').innerText = `x${cYes}`;
+                    document.getElementById('c-no').innerText = `x${cNo}`;
+                }
+            } catch (e) {
+                console.error("Ошибка при получении данных:", e);
+            }
         }
 
         function doBet(outcome) {
             const val = document.getElementById('amount').value;
+            if (val < 0.1) return tg.showAlert("Минимальная ставка 0.1 TON");
+
+            // Отправляем данные в бота
             tg.sendData(JSON.stringify({
                 eventId: 1,
                 outcome: outcome,
@@ -129,8 +140,9 @@
             tg.close();
         }
 
+        // Запуск синхронизации
         sync();
-        setInterval(sync, 10000); // Обновлять каждые 10 сек
+        setInterval(sync, 10000); // Раз в 10 секунд
     </script>
 </body>
 </html>
