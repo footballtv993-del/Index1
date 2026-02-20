@@ -11,9 +11,9 @@
             --blue: #0088cc;
             --green: #34c759;
             --red: #ff3b30;
-            --bg: var(--tg-theme-bg-color, #1c1c1d);
-            --secondary-bg: var(--tg-theme-secondary-bg-color, #2c2c2e);
-            --text: var(--tg-theme-text-color, #ffffff);
+            --bg: var(--tg-theme-bg-color, #f5f5f5);
+            --secondary-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+            --text: var(--tg-theme-text-color, #000000);
         }
 
         body {
@@ -22,7 +22,6 @@
             color: var(--text);
             margin: 0; padding: 16px;
             display: flex; flex-direction: column; align-items: center;
-            -webkit-user-select: none;
         }
 
         .event-card {
@@ -30,41 +29,40 @@
             border-radius: 20px;
             padding: 20px; width: 100%; max-width: 360px;
             box-sizing: border-box;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
 
-        h2 { margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; text-align: center; }
+        h2 { margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; text-align: center; color: var(--blue); }
 
-        /* Стили Прогресс-бара */
-        .stats-box { margin-bottom: 24px; }
         .progress-container {
-            background: #3a3a3c; height: 14px; border-radius: 7px;
-            overflow: hidden; display: flex; margin-bottom: 10px;
+            background: #e5e5ea; height: 12px; border-radius: 6px;
+            overflow: hidden; display: flex; margin-bottom: 8px;
         }
         .progress-fill {
-            background: var(--blue); height: 100%; transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            background: var(--blue); height: 100%; transition: width 0.6s ease;
         }
-        .labels { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
+        .labels { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 20px; }
 
-        /* Стили Поля Ввода (Инпут) */
+        /* ИСПРАВЛЕННЫЙ ИНПУТ */
         .input-section { margin-bottom: 24px; text-align: center; }
-        .input-label { font-size: 13px; text-transform: uppercase; opacity: 0.5; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .input-label { font-size: 14px; color: #8e8e93; margin-bottom: 8px; display: block; }
         
         input {
-            width: 80%;
-            padding: 14px;
+            width: 100%;
+            padding: 16px;
             border-radius: 12px;
-            border: 2px solid transparent;
-            background: var(--bg);
+            border: 2px solid #efeff4;
             
-            /* ЦВЕТ ЦИФР ПРИ ВВОДЕ */
-            color: var(--blue); 
+            /* ЖЕСТКИЕ ЦВЕТА ЧТОБЫ БЫЛО ВИДНО */
+            background-color: #ffffff !important; 
+            color: #000000 !important; 
             
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 800;
             text-align: center;
             outline: none;
-            transition: border-color 0.3s;
+            box-sizing: border-box;
+            -webkit-appearance: none;
         }
         input:focus { border-color: var(--blue); }
 
@@ -77,10 +75,9 @@
         }
         .btn-yes { background: var(--green); }
         .btn-no { background: var(--red); }
-        button:active { transform: scale(0.95); opacity: 0.9; }
+        button:active { transform: scale(0.95); }
         
-        .coeff { font-size: 11px; font-weight: 400; opacity: 0.9; }
-        .footer-note { margin-top: 15px; font-size: 11px; opacity: 0.4; text-align: center; width: 100%; }
+        .coeff { font-size: 12px; font-weight: normal; opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -88,19 +85,17 @@
     <div class="event-card">
         <h2 id="title">Загрузка...</h2>
         
-        <div class="stats-box">
-            <div class="progress-container">
-                <div id="bar" class="progress-fill" style="width: 50%"></div>
-            </div>
-            <div class="labels">
-                <span id="txt-yes" style="color: var(--blue)">ДА: 50%</span>
-                <span id="txt-no" style="color: #8e8e93">НЕТ: 50%</span>
-            </div>
+        <div class="progress-container">
+            <div id="bar" class="progress-fill" style="width: 50%"></div>
+        </div>
+        <div class="labels">
+            <span id="txt-yes">ДА: 50%</span>
+            <span id="txt-no">НЕТ: 50%</span>
         </div>
 
         <div class="input-section">
             <span class="input-label">Сумма ставки (TON)</span>
-            <input type="number" id="amount" value="0.5" min="0.1" step="0.1">
+            <input type="number" id="amount" value="0.1" min="0.1" step="0.1">
         </div>
 
         <div class="btn-grid">
@@ -115,19 +110,13 @@
         </div>
     </div>
 
-    <div class="footer-note">
-        Коэффициент не является окончательным и зависит от общего пула на момент закрытия события.
-    </div>
-
     <script>
         const tg = window.Telegram.WebApp;
-        tg.ready();
         tg.expand();
 
-        // --- ДАННЫЕ ПРОЕКТА ---
         const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
         const EVENT_ID = 1;
-        const EVENT_NAME = "Павел Дуров купит новую Волгу до конца 2025 года?";
+        const EVENT_NAME = "Дуров купит новенькую Волгу до конца 2025?";
 
         document.getElementById('title').innerText = EVENT_NAME;
 
@@ -158,7 +147,7 @@
 
         function send(outcome) {
             const val = document.getElementById('amount').value;
-            if (val < 0.1) return tg.showAlert("Минимальная ставка — 0.1 TON");
+            if (val < 0.1) return alert("Мин. ставка 0.1 TON");
 
             tg.sendData(JSON.stringify({
                 eventId: EVENT_ID,
@@ -169,7 +158,7 @@
         }
 
         sync();
-        setInterval(sync, 20000); // Обновление каждые 20 сек
+        setInterval(sync, 15000);
     </script>
 </body>
 </html>
