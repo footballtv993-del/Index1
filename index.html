@@ -1,18 +1,156 @@
-// Функция для отображения "Живых" данных
-async function updateStats(eventId) {
-    // 1. Вызываем метод контракта через любой API провайдер (Toncenter/Tonapi)
-    // 2. Получаем totalYes и totalNo
-    
-    const total = totalYes + totalNo;
-    const yesPerc = total > 0 ? (totalYes / total * 100).toFixed(0) : 50;
-    const noPerc = 100 - yesPerc;
-    
-    // Коэффициенты (фонд = 90% от общего)
-    const prizePool = total * 0.9;
-    const coeffYes = totalYes > 0 ? (prizePool / totalYes).toFixed(2) : "1.90";
-    const coeffNo = totalNo > 0 ? (prizePool / totalNo).toFixed(2) : "1.90";
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hype Oracle Bet</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #1c1c1d);
+            color: var(--tg-theme-text-color, #ffffff);
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .event-card {
+            background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+            border-radius: 16px;
+            padding: 20px; width: 100%; max-width: 400px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        h2 { margin-top: 0; font-size: 20px; color: var(--tg-theme-button-color, #0088cc); }
+        .stats-container { margin: 15px 0; }
+        .progress-bg {
+            background: #3a3a3c; height: 12px; border-radius: 6px;
+            overflow: hidden; display: flex;
+        }
+        .progress-fill {
+            background: #0088cc; height: 100%; transition: width 0.5s ease;
+        }
+        .labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; opacity: 0.8; }
+        .input-group { margin: 20px 0; display: flex; flex-direction: column; }
+        input {
+            padding: 12px; border-radius: 8px; border: none;
+            background: var(--tg-theme-bg-color, #1c1c1d);
+            color: white; font-size: 16px; text-align: center;
+        }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button {
+            padding: 15px; border-radius: 12px; border: none;
+            font-weight: bold; cursor: pointer; color: white; transition: 0.2s;
+        }
+        .btn-yes { background-color: #34c759; }
+        .btn-no { background-color: #ff3b30; }
+        button:active { transform: scale(0.96); opacity: 0.8; }
+        .coeff { display: block; font-size: 12px; font-weight: normal; margin-top: 4px; }
+    </style>
+</head>
+<body>
 
-    // Обновляем HTML элементы
-    document.getElementById(`perc-yes-${eventId}`).innerText = `${yesPerc}%`;
-    document.getElementById(`coeff-yes-${eventId}`).innerText = `x${coeffYes}`;
-}
+    <div class="event-card">
+        <h2 id="event-title">Загрузка события...</h2>
+        
+        <div class="stats-container">
+            <div class="progress-bg">
+                <div id="progress-bar" class="progress-fill" style="width: 50%"></div>
+            </div>
+            <div class="labels">
+                <span id="label-yes">ДА: 50%</span>
+                <span id="label-no">НЕТ: 50%</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label style="margin-bottom: 8px; font-size: 14px; opacity: 0.6;">Сумма ставки (TON):</label>
+            <input type="number" id="amount" value="0.5" step="0.1" min="0.1">
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-yes" onclick="makeBet(true)">
+                ✅ ДА
+                <span class="coeff" id="coeff-yes">коэфф. x1.90</span>
+            </button>
+            <button class="btn-no" onclick="makeBet(false)">
+                ❌ НЕТ
+                <span class="coeff" id="coeff-no">коэфф. x1.90</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // --- КОНФИГУРАЦИЯ ---
+        const CONTRACT_ADDRESS = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
+        const EVENT_ID = 1; // ID события из твоего бота
+        const EVENT_NAME = "Дуров купит новенькую Волгу до конца 2025?";
+
+        document.getElementById('event-title').innerText = EVENT_NAME;
+
+        // Инициализация TonWeb
+        const tonweb = new TonWeb(new TonWeb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
+
+        async function updateStats() {
+            try {
+                // Вызов геттера get_event
+                const result = await tonweb.call(CONTRACT_ADDRESS, 'get_event', [['num', EVENT_ID]]);
+                
+                // В Tact геттер возвращает данные в стек: totalYes, totalNo, isResolved, winningOutcome
+                const rawYes = result.stack[0][1];
+                const rawNo = result.stack[1][1];
+                
+                // Конвертируем из hex/string в числа (из нанотонов в TON)
+                const yes = parseInt(rawYes, 16) / 1000000000;
+                const no = parseInt(rawNo, 16) / 1000000000;
+                
+                const total = yes + no;
+                const poolToDistribute = total * 0.9; // Твои 10% вычтены
+
+                // Расчет %
+                const yesPerc = total > 0 ? Math.round((yes / total) * 100) : 50;
+                const noPerc = 100 - yesPerc;
+
+                // Расчет коэффициентов
+                const coeffYes = yes > 0 ? (poolToDistribute / yes).toFixed(2) : "1.90";
+                const coeffNo = no > 0 ? (poolToDistribute / no).toFixed(2) : "1.90";
+
+                // Обновляем UI
+                document.getElementById('progress-bar').style.width = yesPerc + "%";
+                document.getElementById('label-yes').innerText = `ДА: ${yesPerc}%`;
+                document.getElementById('label-no').innerText = `НЕТ: ${noPerc}%`;
+                document.getElementById('coeff-yes').innerText = `коэфф. x${coeffYes}`;
+                document.getElementById('coeff-no').innerText = `коэфф. x${coeffNo}`;
+
+            } catch (e) {
+                console.error("Ошибка обновления данных:", e);
+            }
+        }
+
+        function makeBet(outcome) {
+            const amount = document.getElementById('amount').value;
+            if (amount < 0.1) {
+                alert("Минимальная ставка 0.1 TON");
+                return;
+            }
+
+            // Отправляем данные боту через Telegram.WebApp
+            const data = {
+                eventId: EVENT_ID,
+                outcome: outcome,
+                amount: amount
+            };
+            tg.sendData(JSON.stringify(data));
+            tg.close();
+        }
+
+        // Обновляем статистику при загрузке и каждые 30 сек
+        updateStats();
+        setInterval(updateStats, 30000);
+
+    </script>
+</body>
+</html>
