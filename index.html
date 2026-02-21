@@ -2,74 +2,126 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hype Oracle Live</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hype Oracle Clean</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); margin-bottom: 20px; width: 100%; max-width: 400px; text-align: center; }
-        .stats { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 15px; }
-        input { width: 100%; height: 50px; border: 2px solid #0088cc; border-radius: 12px; font-size: 24px; text-align: center; margin-bottom: 15px; outline: none; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 15px; border-radius: 12px; border: none; color: #fff; font-weight: bold; cursor: pointer; }
-        .btn-yes { background: #34c759; } .btn-no { background: #ff3b30; }
-        .small-txt { display: block; font-size: 11px; opacity: 0.8; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        #app { width: 100%; max-width: 400px; }
+        .card { background: #fff; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
+        h2 { font-size: 20px; color: #222; margin: 0 0 15px 0; }
+        
+        /* Прогресс-бар процентов */
+        .poll-container { height: 10px; background: #eee; border-radius: 5px; display: flex; overflow: hidden; margin-bottom: 10px; }
+        .poll-yes { background: #34c759; transition: width 0.5s; }
+        .poll-no { background: #ff3b30; transition: width 0.5s; }
+        
+        .stats-text { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-bottom: 20px; color: #666; }
+        
+        input { width: 100%; height: 60px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 28px; font-weight: bold; text-align: center; margin-bottom: 8px; outline: none; transition: border-color 0.3s; }
+        input:focus { border-color: #0088cc; }
+        
+        .win-estimate { font-size: 14px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 18px; }
+        
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        button { padding: 18px; border-radius: 16px; border: none; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn-yes { background: #34c759; }
+        .btn-no { background: #ff3b30; }
+        
+        .loading { color: #888; margin-top: 50px; }
     </style>
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app"><div class="loading">Загрузка...</div></div>
+
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+
         const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
         const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
 
         const params = new URLSearchParams(window.location.search);
         const b64Data = params.get('data');
         let eventList = [];
+        let blockchainData = {}; // Храним данные здесь для живого расчета
 
         if (b64Data) {
             try {
-                // Декодирование UTF-8 из Base64
                 const binaryString = atob(b64Data.replace(/ /g, '+'));
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
                 eventList = JSON.parse(new TextDecoder().decode(bytes));
-            } catch (e) { console.error("Error:", e); }
+            } catch (e) { console.error("Error decoding:", e); }
         }
 
         function initApp() {
             const container = document.getElementById('app');
+            container.innerHTML = '';
             eventList.forEach(event => {
                 container.innerHTML += `
                     <div class="card">
                         <h2>${event.title}</h2>
-                        <div class="stats"><span id="y-${event.id}">ДА: --%</span><span id="n-${event.id}">НЕТ: --%</span></div>
-                        <input type="number" id="am-${event.id}" value="0.1" step="0.1">
+                        <div class="poll-container">
+                            <div id="bar-y-${event.id}" class="poll-yes" style="width: 50%"></div>
+                            <div id="bar-n-${event.id}" class="poll-no" style="width: 50%"></div>
+                        </div>
+                        <div class="stats-text">
+                            <span id="txt-y-${event.id}" style="color: #34c759">ДА: --%</span>
+                            <span id="txt-n-${event.id}" style="color: #ff3b30">НЕТ: --%</span>
+                        </div>
+                        <input type="number" id="am-${event.id}" value="1" step="1" oninput="calculateWin(${event.id})">
+                        <div class="win-estimate" id="est-${event.id}">Введите сумму ставки</div>
                         <div class="btn-grid">
-                            <button class="btn-yes" onclick="doBet(${event.id}, true)">ДА <span id="cy-${event.id}" class="small-txt">x1.90</span></button>
-                            <button class="btn-no" onclick="doBet(${event.id}, false)">НЕТ <span id="cn-${event.id}" class="small-txt">x1.90</span></button>
+                            <button class="btn-yes" onclick="doBet(${event.id}, true)">ДА</button>
+                            <button class="btn-no" onclick="doBet(${event.id}, false)">НЕТ</button>
                         </div>
                     </div>`;
             });
         }
 
         async function sync(id) {
-            const res = await fetch('https://toncenter.com/api/v2/runGetMethod', {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-                body: JSON.stringify({ address: CONTRACT, method: 'get_event', stack: [['num', id]] })
-            });
-            const data = await res.json();
-            if (data.ok && data.result?.stack?.[0]) {
-                const el = data.result.stack[0][1].elements;
-                const y = Number(BigInt(el[0].number.number)) / 1e9, n = Number(BigInt(el[1].number.number)) / 1e9, t = y + n;
-                if (t === 0) return;
-                const p = t * 0.9, yP = Math.round((y/t)*100);
-                document.getElementById(`y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
-                document.getElementById(`n-${id}`).innerText = `НЕТ: ${100-yP}% (${n.toFixed(1)} T)`;
-                document.getElementById(`cy-${id}`).innerText = 'x' + (y>0 ? (p/y).toFixed(2) : "1.90");
-                document.getElementById(`cn-${id}`).innerText = 'x' + (n>0 ? (p/n).toFixed(2) : "1.90");
+            try {
+                const res = await fetch('https://toncenter.com/api/v2/runGetMethod', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+                    body: JSON.stringify({ address: CONTRACT, method: 'get_event', stack: [['num', id]] })
+                });
+                const data = await res.json();
+                if (data.ok && data.result?.stack?.[0]) {
+                    const el = data.result.stack[0][1].elements;
+                    const y = Number(BigInt(el[0].number.number)) / 1e9;
+                    const n = Number(BigInt(el[1].number.number)) / 1e9;
+                    const total = y + n;
+                    
+                    blockchainData[id] = { yes: y, no: n, total: total };
+
+                    if (total > 0) {
+                        const yP = Math.round((y / total) * 100);
+                        document.getElementById(`bar-y-${id}`).style.width = `${yP}%`;
+                        document.getElementById(`bar-n-${id}`).style.width = `${100 - yP}%`;
+                        document.getElementById(`txt-y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
+                        document.getElementById(`txt-n-${id}`).innerText = `НЕТ: ${100 - yP}% (${n.toFixed(1)} T)`;
+                        calculateWin(id); // Обновляем прогноз сразу после загрузки
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function calculateWin(id) {
+            const amount = parseFloat(document.getElementById(`am-${id}`).value) || 0;
+            const info = blockchainData[id];
+            if (!info || info.total === 0 || amount <= 0) {
+                document.getElementById(`est-${id}`).innerText = "Введите сумму ставки";
+                return;
             }
+
+            // Рассчитываем примерный выигрыш для ДА (как пример)
+            const fee = 0.9; // 10% комиссия
+            const potWinYes = ( (info.total * fee) / info.yes ) * amount;
+            const potWinNo = ( (info.total * fee) / info.no ) * amount;
+            
+            // Показываем диапазон или среднее, так как мы не знаем, куда нажмет игрок
+            document.getElementById(`est-${id}`).innerText = `Ожидаемый выигрыш: ~${potWinYes.toFixed(2)} / ${potWinNo.toFixed(2)} TON`;
         }
 
         function doBet(id, outcome) {
