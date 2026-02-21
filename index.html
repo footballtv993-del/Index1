@@ -88,20 +88,43 @@
             } catch (e) {}
         }
 
-        function calculateWin(id) {
-            const amount = parseFloat(document.getElementById(`am-${id}`).value) || 0;
-            const info = blockchainData[id];
-            if (!info || amount <= 0) return;
+       function calculateWin(id) {
+    const input = document.getElementById(`am-${id}`);
+    const display = document.getElementById(`est-${id}`);
+    const amount = parseFloat(input.value) || 0;
+    const info = blockchainData[id];
 
-            const fee = 0.9; // 10% только с проигрышного пула
-            const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
-            const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
+    if (!info || amount <= 0) {
+        display.innerText = "Укажите сумму для прогноза";
+        return;
+    }
 
-            document.getElementById(`est-${id}`).innerHTML = `
-                Победа <b>ДА</b>: ~${winYes.toFixed(2)} T <span class="profit">(+${(winYes-amount).toFixed(2)})</span><br>
-                Победа <b>НЕТ</b>: ~${winNo.toFixed(2)} T <span class="profit">(+${(winNo-amount).toFixed(2)})</span>
-            `;
-        }
+    // Если всё событие пустое (никто еще не ставил вообще)
+    if (info.total < 0.01) {
+        display.innerHTML = `<span style="color: #888; font-size: 12px;">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на другой стороне</span>`;
+        return;
+    }
+
+    const fee = 0.9; 
+    const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
+    const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
+
+    // Логика текста для "Первой ставки" на конкретную сторону
+    let resYes = `~${winYes.toFixed(2)} T <span class="profit">(+${(winYes - amount).toFixed(2)})</span>`;
+    let resNo = `~${winNo.toFixed(2)} T <span class="profit">(+${(winNo - amount).toFixed(2)})</span>`;
+
+    if (info.no < 0.01) {
+        resYes = `<span style="color: #888; font-size: 11px;">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "НЕТ"</span>`;
+    }
+    if (info.yes < 0.01) {
+        resNo = `<span style="color: #888; font-size: 11px;">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "ДА"</span>`;
+    }
+
+    display.innerHTML = `
+        Победа <b>ДА</b>: ${resYes}<br>
+        Победа <b>НЕТ</b>: ${resNo}
+    `;
+}
 
         function doBet(id, outcome) {
             const amount = document.getElementById(`am-${id}`).value;
@@ -114,3 +137,4 @@
     </script>
 </body>
 </html>
+
