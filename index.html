@@ -32,31 +32,44 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+
         const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
-        const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
+        const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
+        
         let eventList = [];
         let blockchainData = {};
 
+        // Безопасное декодирование данных из URL
         const params = new URLSearchParams(window.location.search);
         const b64Data = params.get('data');
         if (b64Data) {
             try {
-                const binaryString = atob(b64Data.replace(/ /g, '+'));
+                const binaryString = window.atob(b64Data.replace(/\s/g, '+'));
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-                eventList = JSON.parse(new TextDecoder().decode(bytes));
-            } catch (e) {}
+                eventList = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+            } catch (e) { console.error("Data error:", e); }
         }
 
         function initApp() {
             const container = document.getElementById('app');
+            if (!eventList.length) {
+                container.innerHTML = '<div class="loading">Нет активных событий</div>';
+                return;
+            }
             container.innerHTML = '';
             eventList.forEach(event => {
                 container.innerHTML += `
                     <div class="card">
                         <h2>${event.title}</h2>
-                        <div class="poll-container"><div id="bar-y-${event.id}" class="poll-yes" style="width: 50%"></div><div id="bar-n-${event.id}" class="poll-no" style="width: 50%"></div></div>
-                        <div class="stats-text"><span id="txt-y-${event.id}">ДА: --</span><span id="txt-n-${event.id}">НЕТ: --</span></div>
+                        <div class="poll-container">
+                            <div id="bar-y-${event.id}" class="poll-yes" style="width: 50%"></div>
+                            <div id="bar-n-${event.id}" class="poll-no" style="width: 50%"></div>
+                        </div>
+                        <div class="stats-text">
+                            <span id="txt-y-${event.id}">ДА: --</span>
+                            <span id="txt-n-${event.id}">НЕТ: --</span>
+                        </div>
                         <input type="number" id="am-${event.id}" placeholder="Сумма TON" oninput="calculateWin(${event.id})">
                         <div class="win-estimate" id="est-${event.id}">Укажите сумму для прогноза</div>
                         <div class="btn-grid">
@@ -79,14 +92,15 @@
                     const y = Number(BigInt(el[0].number.number)) / 1e9;
                     const n = Number(BigInt(el[1].number.number)) / 1e9;
                     blockchainData[id] = { yes: y, no: n, total: y + n };
+                    
                     const total = y + n;
                     const yP = total > 0 ? Math.round((y/total)*100) : 50;
+                    
                     document.getElementById(`bar-y-${id}`).style.width = yP + '%';
                     document.getElementById(`bar-n-${id}`).style.width = (100-yP) + '%';
                     document.getElementById(`txt-y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
                     document.getElementById(`txt-n-${id}`).innerText = `НЕТ: ${100-yP}% (${n.toFixed(1)} T)`;
                     
-                    // Обновляем расчет сразу после получения данных
                     calculateWin(id);
                 }
             } catch (e) {}
@@ -95,35 +109,29 @@
         function calculateWin(id) {
             const input = document.getElementById(`am-${id}`);
             const display = document.getElementById(`est-${id}`);
-            if (!input || !display) return;
+            if (!input || !display || !blockchainData[id]) return;
 
             const amount = parseFloat(input.value) || 0;
             const info = blockchainData[id];
 
-            if (!info) return;
             if (amount <= 0) {
                 display.innerText = "Укажите сумму для прогноза";
                 return;
             }
 
-            const fee = 0.9; 
+            const fee = 0.9; // 10% комиссия с проигрышного пула
             const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
             const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
 
-            let resYes = `~${winYes.toFixed(2)} TON`;
-            let resNo = `~${winNo.toFixed(2)} TON`;
-
-            // Текст для первого игрока (если на противоположной стороне меньше 0.01 TON)
-            const firstBetText = '<br><span class="first-bet-info">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на другой стороне</span>';
-
-            if (info.no < 0.01) {
-                resYes = `Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "НЕТ"`;
-            }
-            if (info.yes < 0.01) {
-                resNo = `Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "ДА"`;
+            // ЛОГИКА ОТОБРАЖЕНИЯ:
+            // Если в событии вообще еще нет ставок (пул < 0.01 TON)
+            if (info.total < 0.01) {
+                display.innerHTML = `<span class="first-bet-info">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на другой стороне</span>`;
+                return;
             }
 
-            display.innerHTML = `Победа <b>ДА</b>: ${resYes}<br>Победа <b>НЕТ</b>: ${resNo}`;
+            // Если кто-то уже поставил, показываем расчет
+            display.innerHTML = `Победа <b>ДА</b>: ~${winYes.toFixed(2)} TON<br>Победа <b>НЕТ</b>: ~${winNo.toFixed(2)} TON`;
         }
 
         function doBet(id, outcome) {
@@ -135,7 +143,6 @@
 
         initApp();
         eventList.forEach(e => sync(e.id));
-        // Автообновление каждые 15 секунд
         setInterval(() => eventList.forEach(e => sync(e.id)), 15000);
     </script>
 </body>
