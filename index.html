@@ -17,8 +17,9 @@
         .stats-text { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-bottom: 20px; color: #666; }
         input { width: 100%; height: 60px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 8px; outline: none; color: #222; }
         input:focus { border-color: #0088cc; }
-        .win-estimate { font-size: 13px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 40px; line-height: 1.5; }
+        .win-estimate { font-size: 13px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 45px; line-height: 1.4; }
         .win-estimate b { color: #222; }
+        .first-bet-info { color: #8a8a8e; font-style: italic; font-weight: 400; font-size: 12px; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         button { padding: 18px; border-radius: 16px; border: none; color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; }
         .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
@@ -84,40 +85,58 @@
                     document.getElementById(`bar-n-${id}`).style.width = (100-yP) + '%';
                     document.getElementById(`txt-y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
                     document.getElementById(`txt-n-${id}`).innerText = `НЕТ: ${100-yP}% (${n.toFixed(1)} T)`;
+                    
+                    // Обновляем расчет сразу после получения данных
                     calculateWin(id);
                 }
             } catch (e) {}
         }
 
         function calculateWin(id) {
-            const amount = parseFloat(document.getElementById(`am-${id}`).value) || 0;
-            const info = blockchainData[id];
+            const input = document.getElementById(`am-${id}`);
             const display = document.getElementById(`est-${id}`);
-            if (!info || amount <= 0) { display.innerText = "Укажите сумму для прогноза"; return; }
+            if (!input || !display) return;
+
+            const amount = parseFloat(input.value) || 0;
+            const info = blockchainData[id];
+
+            if (!info) return;
+            if (amount <= 0) {
+                display.innerText = "Укажите сумму для прогноза";
+                return;
+            }
 
             const fee = 0.9; 
             const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
             const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
 
-            let resYes = `~${winYes.toFixed(2)} T`;
-            let resNo = `~${winNo.toFixed(2)} T`;
+            let resYes = `~${winYes.toFixed(2)} TON`;
+            let resNo = `~${winNo.toFixed(2)} TON`;
 
-            // Логика для первого игрока
-            if (info.no === 0) resYes = "❓ Вы первый! Доход будет после ставок на 'НЕТ'";
-            if (info.yes === 0) resNo = "❓ Вы первый! Доход будет после ставок на 'ДА'";
+            // Текст для первого игрока (если на противоположной стороне меньше 0.01 TON)
+            const firstBetText = '<br><span class="first-bet-info">Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на другой стороне</span>';
+
+            if (info.no < 0.01) {
+                resYes = `Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "НЕТ"`;
+            }
+            if (info.yes < 0.01) {
+                resNo = `Ваша ставка - первая! Выигрыш возможно рассчитать после появления ставок на "ДА"`;
+            }
 
             display.innerHTML = `Победа <b>ДА</b>: ${resYes}<br>Победа <b>НЕТ</b>: ${resNo}`;
         }
 
         function doBet(id, outcome) {
             const amount = document.getElementById(`am-${id}`).value;
+            if (!amount || amount <= 0) return;
             tg.sendData(JSON.stringify({ eventId: id, outcome: outcome, amount: amount }));
             tg.close();
         }
 
         initApp();
         eventList.forEach(e => sync(e.id));
+        // Автообновление каждые 15 секунд
+        setInterval(() => eventList.forEach(e => sync(e.id)), 15000);
     </script>
 </body>
 </html>
-
