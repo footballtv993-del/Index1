@@ -17,9 +17,8 @@
         .stats-text { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-bottom: 20px; color: #666; }
         input { width: 100%; height: 60px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 8px; outline: none; color: #222; }
         input:focus { border-color: #0088cc; }
-        .win-estimate { font-size: 13px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 32px; line-height: 1.5; }
+        .win-estimate { font-size: 13px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 40px; line-height: 1.5; }
         .win-estimate b { color: #222; }
-        .profit { color: #34c759; font-size: 11px; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         button { padding: 18px; border-radius: 16px; border: none; color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; }
         .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
@@ -28,11 +27,12 @@
     </style>
 </head>
 <body>
-    <div id="app"><div class="loading">Загрузка...</div></div>
+    <div id="app"><div class="loading">Загрузка линии...</div></div>
     <script>
         const tg = window.Telegram.WebApp;
+        tg.expand();
         const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
-        const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
+        const CONTRACT = "EQDqdzAV0pqaHpkV-9xuS1smY8w34tpX7BlBaCg13W2Zjavk";
         let eventList = [];
         let blockchainData = {};
 
@@ -78,7 +78,8 @@
                     const y = Number(BigInt(el[0].number.number)) / 1e9;
                     const n = Number(BigInt(el[1].number.number)) / 1e9;
                     blockchainData[id] = { yes: y, no: n, total: y + n };
-                    const yP = (y+n) > 0 ? Math.round((y/(y+n))*100) : 50;
+                    const total = y + n;
+                    const yP = total > 0 ? Math.round((y/total)*100) : 50;
                     document.getElementById(`bar-y-${id}`).style.width = yP + '%';
                     document.getElementById(`bar-n-${id}`).style.width = (100-yP) + '%';
                     document.getElementById(`txt-y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
@@ -91,16 +92,21 @@
         function calculateWin(id) {
             const amount = parseFloat(document.getElementById(`am-${id}`).value) || 0;
             const info = blockchainData[id];
-            if (!info || amount <= 0) return;
+            const display = document.getElementById(`est-${id}`);
+            if (!info || amount <= 0) { display.innerText = "Укажите сумму для прогноза"; return; }
 
-            const fee = 0.9; // 10% только с проигрышного пула
+            const fee = 0.9; 
             const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
             const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
 
-            document.getElementById(`est-${id}`).innerHTML = `
-                Победа <b>ДА</b>: ~${winYes.toFixed(2)} T <span class="profit">(+${(winYes-amount).toFixed(2)})</span><br>
-                Победа <b>НЕТ</b>: ~${winNo.toFixed(2)} T <span class="profit">(+${(winNo-amount).toFixed(2)})</span>
-            `;
+            let resYes = `~${winYes.toFixed(2)} T`;
+            let resNo = `~${winNo.toFixed(2)} T`;
+
+            // Логика для первого игрока
+            if (info.no === 0) resYes = "❓ Вы первый! Доход будет после ставок на 'НЕТ'";
+            if (info.yes === 0) resNo = "❓ Вы первый! Доход будет после ставок на 'ДА'";
+
+            display.innerHTML = `Победа <b>ДА</b>: ${resYes}<br>Победа <b>НЕТ</b>: ${resNo}`;
         }
 
         function doBet(id, outcome) {
@@ -114,4 +120,3 @@
     </script>
 </body>
 </html>
-
