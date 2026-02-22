@@ -15,7 +15,6 @@
     .poll-yes { background: #34c759; transition: width 0.6s; }
     .poll-no { background: #ff3b30; transition: width 0.6s; }
     .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; }
-    .row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
     input { width: 100%; height: 56px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 22px; font-weight: 900; text-align: center; outline: none; color: #222; }
     input:focus { border-color: #0088cc; }
     .hint { font-size: 12px; color: #888; margin-top: -4px; margin-bottom: 12px; text-align: center; }
@@ -43,24 +42,14 @@
     if (tg) tg.ready();
 
     // --- Конфиг ---
-    // 1) CONTRACT можно оставить захардкоженным (это не секрет)
     const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
-
-    // 2) Источник данных блокчейна:
-    //   - Рекомендуется PROXY_URL (свой сервер), чтобы не светить API key.
-    //   - Фоллбек: прямой toncenter с ключом из query (?api=KEY). Это НЕ безопасно.
-    const PROXY_URL = null; // например: "https://your-domain.com/ton-get-event"
-
     const REFRESH_MS = 15000;
     const MIN_BET = 0.10;
 
-    // --- Данные ---
     let eventList = [];
-    const state = new Map(); // eventId -> { yes,no,total,isResolved,winningOutcome, lastSyncAt, error }
+    const state = new Map(); // eventId -> { yes,no,total,isResolved,winningOutcome,lastSyncAt,error }
 
-    // --- Helpers ---
     function safeBase64ToJson(b64) {
-      // b64 может прийти как обычный base64; пробелы иногда портят URL
       const norm = (b64 || "").replace(/ /g, "+");
       const bin = atob(norm);
       const bytes = new Uint8Array(bin.length);
@@ -91,33 +80,18 @@
       app.appendChild(div);
     }
 
-    // --- Toncenter / Proxy ---
-    async function fetchEventFromChain(eventId) {
-      // Возвращает объект:
-      // { yes, no, total, isResolved, winningOutcome }
-      // или бросает ошибку.
-
-      if (PROXY_URL) {
-        // Ожидаем JSON: { ok:true, data:{ yes,no,isResolved,winningOutcome } }
-        const r = await fetch(`${PROXY_URL}?address=${encodeURIComponent(CONTRACT)}&id=${encodeURIComponent(eventId)}`);
-        const j = await r.json();
-        if (!j || !j.ok) throw new Error(j?.error || "Proxy error");
-        const yes = Number(j.data.yes);
-        const no = Number(j.data.no);
-        const isResolved = !!j.data.isResolved;
-        const winningOutcome = !!j.data.winningOutcome;
-        return { yes, no, total: yes + no, isResolved, winningOutcome };
-      }
-
-      // Fallback: прямой toncenter (НЕ безопасно, ключ будет в ссылке)
+    async function fetchEventFromToncenter(eventId) {
       const params = new URLSearchParams(window.location.search);
-      const API_KEY = params.get("api"); // ?api=...
-      if (!API_KEY) throw new Error("Нет доступа к данным (не задан ?api=... и не настроен PROXY_URL)");
+      const API_KEY = params.get("api"); // bot.ts должен добавлять &api=... в ссылку
 
-      // toncenter JSON-RPC handler [web:66]
-      const res = await fetch("https://toncenter.com/api/v2/jsonRPC", {
+      if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
+
+      // Ключ передаём как api_key в query (без X-API-Key header) -> меньше проблем с CORS [web:87][web:88]
+      const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
+
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: 1,
           jsonrpc: "2.0",
@@ -133,34 +107,31 @@
       const json = await res.json();
       if (json.error) throw new Error(json.error.message || "Toncenter error");
 
-      // Стек зависит от провайдера/формата; твой предыдущий код доставал elements[0..3].
-      // Оставим максимально совместимый парсер:
       const stack0 = json?.result?.stack?.[0];
-      if (!stack0) throw new Error("Пустой ответ get_event (возможно, события нет)");
+      if (!stack0) throw new Error("Пустой stack (возможно, события нет)");
 
-      // Ожидаем tuple в stack[0]
       const tuple = stack0[1];
-      const elements = tuple?.elements;
-      if (!Array.isArray(elements) || elements.length < 4) throw new Error("Неожиданный формат стека get_event");
+      const el = tuple?.elements;
+      if (!Array.isArray(el) || el.length < 4) throw new Error("Неожиданный формат stack");
 
-      // totalYes, totalNo (coins), isResolved (bool), winningOutcome (bool)
-      const yesNano = BigInt(elements[0]?.number?.number ?? elements[0]?.number ?? "0");
-      const noNano  = BigInt(elements[1]?.number?.number ?? elements[1]?.number ?? "0");
+      const yesNano = BigInt(el[0]?.number?.number ?? el[0]?.number ?? "0");
+      const noNano  = BigInt(el[1]?.number?.number ?? el[1]?.number ?? "0");
 
-      // bool в toncenter часто "0"/"1" как number.number
-      const isResolvedRaw = elements[2]?.number?.number ?? elements[2]?.number ?? "0";
-      const winningRaw    = elements[3]?.number?.number ?? elements[3]?.number ?? "0";
+      const isResolvedRaw = el[2]?.number?.number ?? el[2]?.number ?? "0";
+      const winningRaw    = el[3]?.number?.number ?? el[3]?.number ?? "0";
 
       const yes = Number(yesNano) / 1e9;
       const no  = Number(noNano) / 1e9;
 
-      const isResolved = String(isResolvedRaw) === "1";
-      const winningOutcome = String(winningRaw) === "1";
-
-      return { yes, no, total: yes + no, isResolved, winningOutcome };
+      return {
+        yes,
+        no,
+        total: yes + no,
+        isResolved: String(isResolvedRaw) === "1",
+        winningOutcome: String(winningRaw) === "1",
+      };
     }
 
-    // --- UI ---
     function buildCard(event) {
       const card = document.createElement("div");
       card.className = "card";
@@ -260,11 +231,9 @@
         status.className = "success";
       }
 
-      // Disable bet buttons
       const buttons = card.querySelectorAll("button");
       buttons.forEach(b => b.disabled = true);
 
-      // Update estimate text
       const est = document.getElementById(`est-${eventId}`);
       if (est) est.innerHTML = `Событие завершено. Забрать выигрыш можно через бота командой <b>/claim ${eventId}</b>.`;
     }
@@ -313,16 +282,12 @@
       const yesPool = info.yes;
       const noPool = info.no;
 
-      // Если пула нет вообще — прогноз бессмысленен
       if ((yesPool + noPool) <= 0) { est.textContent = "Пока нет ставок — прогноз недоступен"; return; }
 
-      // Тотализатор с 10% комиссии с проигрышного пула (как у тебя)
       const fee = 0.9;
 
       const denomYes = (yesPool + amount);
       const denomNo = (noPool + amount);
-
-      // Защита от деления на 0
       if (denomYes <= 0 || denomNo <= 0) { est.textContent = "Недостаточно данных для расчёта"; return; }
 
       const winIfYes = amount + (amount / denomYes) * (noPool * fee);
@@ -335,14 +300,16 @@
 
     async function syncEvent(eventId) {
       try {
-        const data = await fetchEventFromChain(eventId);
+        const data = await fetchEventFromToncenter(eventId);
         state.set(eventId, { ...data, lastSyncAt: Date.now(), error: null });
         renderFromState(eventId);
       } catch (e) {
+        const msg = String(e?.message || e);
         const prev = state.get(eventId) || {};
-        state.set(eventId, { ...prev, lastSyncAt: Date.now(), error: String(e?.message || e) });
+        state.set(eventId, { ...prev, lastSyncAt: Date.now(), error: msg });
+
         const meta = document.getElementById(`meta-${eventId}`);
-        if (meta) meta.textContent = `Ошибка обновления`;
+        if (meta) meta.textContent = `Ошибка: ${msg.slice(0, 80)}`;
       }
     }
 
@@ -376,18 +343,16 @@
       try {
         tg.sendData(JSON.stringify({ eventId, outcome, amount: amount.toFixed(2) }));
         setSending(eventId, false, "✅ Отправлено. Заверши оплату в чате с ботом.");
-        // Не закрываем автоматически: пусть пользователь увидит статус
-      } catch (e) {
+      } catch {
         setSending(eventId, false, "Ошибка отправки в бота");
       }
     }
 
-    // --- Init ---
     (function main() {
       const params = new URLSearchParams(window.location.search);
       const b64Data = params.get("data");
       if (!b64Data) {
-        setAppError("Нет данных событий (параметр ?data=...). Открой WebApp через бота.");
+        setAppError("Нет данных событий (?data=...). Открой WebApp через бота.");
         return;
       }
 
@@ -407,15 +372,13 @@
         return;
       }
 
+      const ids = [];
       for (const ev of eventList) {
-        // базовая валидация
         if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
-        const card = buildCard(ev);
-        app.appendChild(card);
+        ids.push(ev.id);
+        app.appendChild(buildCard(ev));
       }
 
-      // первичная синхронизация и таймер
-      const ids = eventList.map(e => e.id).filter(id => Number.isFinite(id));
       ids.forEach(id => syncEvent(id));
       setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
     })();
