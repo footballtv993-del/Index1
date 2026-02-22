@@ -1,231 +1,424 @@
-<!DOCTYPE html>
-
+<!doctype html>
 <html lang="ru">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>Hype Oracle Dynamic</title>
-
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-    <style>
-
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
-
-        #app { width: 100%; max-width: 400px; }
-
-        .card { background: #fff; border-radius: 24px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
-
-        h2 { font-size: 19px; color: #222; margin: 0 0 18px 0; line-height: 1.4; }
-
-        .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
-
-        .poll-yes { background: #34c759; transition: width 0.6s; }
-
-        .poll-no { background: #ff3b30; transition: width 0.6s; }
-
-        .stats-text { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-bottom: 20px; color: #666; }
-
-        input { width: 100%; height: 60px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 26px; font-weight: 900; text-align: center; margin-bottom: 8px; outline: none; color: #222; }
-
-        input:focus { border-color: #0088cc; }
-
-        .win-estimate { font-size: 13px; color: #0088cc; font-weight: 600; margin-bottom: 20px; min-height: 32px; line-height: 1.5; }
-
-        .win-estimate b { color: #222; }
-
-        .profit { color: #34c759; font-size: 11px; }
-
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-        button { padding: 18px; border-radius: 16px; border: none; color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; }
-
-        .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
-
-        .btn-no { background: #ff3b30; box-shadow: 0 4px 0 #d93025; }
-
-        .loading { color: #888; margin-top: 50px; }
-
-    </style>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hype Oracle</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
+    #app { width: 100%; max-width: 420px; }
+    .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    h2 { font-size: 18px; color: #222; margin: 0 0 14px 0; line-height: 1.35; text-align: center; }
+    .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
+    .poll-yes { background: #34c759; transition: width 0.6s; }
+    .poll-no { background: #ff3b30; transition: width 0.6s; }
+    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; }
+    .row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    input { width: 100%; height: 56px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 22px; font-weight: 900; text-align: center; outline: none; color: #222; }
+    input:focus { border-color: #0088cc; }
+    .hint { font-size: 12px; color: #888; margin-top: -4px; margin-bottom: 12px; text-align: center; }
+    .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; min-height: 32px; line-height: 1.55; text-align: center; }
+    .win-estimate b { color: #222; }
+    .profit { color: #34c759; font-size: 11px; }
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    button { padding: 16px; border-radius: 16px; border: none; color: #fff; font-size: 16px; font-weight: 850; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
+    .btn-no { background: #ff3b30; box-shadow: 0 4px 0 #d93025; }
+    .meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; color: #777; font-size: 12px; }
+    .badge { background:#f3f4f6; border:1px solid #e5e7eb; padding:6px 10px; border-radius: 999px; }
+    .loading { color: #888; margin-top: 50px; text-align: center; }
+    .error { color: #b42318; background:#fff; border-radius: 18px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
+    .success { color: #067647; }
+  </style>
 </head>
 
 <body>
-
-    <div id="app"><div class="loading">Загрузка...</div></div>
-
-    <script>
-
-        const tg = window.Telegram.WebApp;
-
-        const API_KEY = '21cea29b51afd3344a671344df74e9d1891d6143d3a981f46b79815efbeb0979'; 
-
-        const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
-
-        let eventList = [];
-
-        let blockchainData = {};
-
-
-
-        const params = new URLSearchParams(window.location.search);
-
-        const b64Data = params.get('data');
-
-        if (b64Data) {
-
-            try {
-
-                const binaryString = atob(b64Data.replace(/ /g, '+'));
-
-                const bytes = new Uint8Array(binaryString.length);
-
-                for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-
-                eventList = JSON.parse(new TextDecoder().decode(bytes));
-
-            } catch (e) {}
-
-        }
-
-
-
-        function initApp() {
-
-            const container = document.getElementById('app');
-
-            container.innerHTML = '';
-
-            eventList.forEach(event => {
-
-                container.innerHTML += `
-
-                    <div class="card">
-
-                        <h2>${event.title}</h2>
-
-                        <div class="poll-container"><div id="bar-y-${event.id}" class="poll-yes" style="width: 50%"></div><div id="bar-n-${event.id}" class="poll-no" style="width: 50%"></div></div>
-
-                        <div class="stats-text"><span id="txt-y-${event.id}">ДА: --</span><span id="txt-n-${event.id}">НЕТ: --</span></div>
-
-                        <input type="number" id="am-${event.id}" placeholder="Сумма TON" oninput="calculateWin(${event.id})">
-
-                        <div class="win-estimate" id="est-${event.id}">Укажите сумму для прогноза</div>
-
-                        <div class="btn-grid">
-
-                            <button class="btn-yes" onclick="doBet(${event.id}, true)">ДА</button>
-
-                            <button class="btn-no" onclick="doBet(${event.id}, false)">НЕТ</button>
-
-                        </div>
-
-                    </div>`;
-
-            });
-
-        }
-
-
-
-        async function sync(id) {
-
-            try {
-
-                const res = await fetch('https://toncenter.com/api/v2/runGetMethod', {
-
-                    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
-
-                    body: JSON.stringify({ address: CONTRACT, method: 'get_event', stack: [['num', id]] })
-
-                });
-
-                const data = await res.json();
-
-                if (data.ok && data.result?.stack?.[0]) {
-
-                    const el = data.result.stack[0][1].elements;
-
-                    const y = Number(BigInt(el[0].number.number)) / 1e9;
-
-                    const n = Number(BigInt(el[1].number.number)) / 1e9;
-
-                    blockchainData[id] = { yes: y, no: n, total: y + n };
-
-                    const yP = (y+n) > 0 ? Math.round((y/(y+n))*100) : 50;
-
-                    document.getElementById(`bar-y-${id}`).style.width = yP + '%';
-
-                    document.getElementById(`bar-n-${id}`).style.width = (100-yP) + '%';
-
-                    document.getElementById(`txt-y-${id}`).innerText = `ДА: ${yP}% (${y.toFixed(1)} T)`;
-
-                    document.getElementById(`txt-n-${id}`).innerText = `НЕТ: ${100-yP}% (${n.toFixed(1)} T)`;
-
-                    calculateWin(id);
-
-                }
-
-            } catch (e) {}
-
-        }
-
-
-
-        function calculateWin(id) {
-
-            const amount = parseFloat(document.getElementById(`am-${id}`).value) || 0;
-
-            const info = blockchainData[id];
-
-            if (!info || amount <= 0) return;
-
-
-
-            const fee = 0.9; // 10% только с проигрышного пула
-
-            const winYes = amount + (amount / (info.yes + amount)) * (info.no * fee);
-
-            const winNo = amount + (amount / (info.no + amount)) * (info.yes * fee);
-
-
-
-            document.getElementById(`est-${id}`).innerHTML = `
-
-                Победа <b>ДА</b>: ~${winYes.toFixed(2)} T <span class="profit">(+${(winYes-amount).toFixed(2)})</span><br>
-
-                Победа <b>НЕТ</b>: ~${winNo.toFixed(2)} T <span class="profit">(+${(winNo-amount).toFixed(2)})</span>
-
-            `;
-
-        }
-
-
-
-        function doBet(id, outcome) {
-
-            const amount = document.getElementById(`am-${id}`).value;
-
-            tg.sendData(JSON.stringify({ eventId: id, outcome: outcome, amount: amount }));
-
-            tg.close();
-
-        }
-
-
-
-        initApp();
-
-        eventList.forEach(e => sync(e.id));
-
-    </script>
-
+  <div id="app"><div class="loading">Загрузка...</div></div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) tg.ready();
+
+    // --- Конфиг ---
+    // 1) CONTRACT можно оставить захардкоженным (это не секрет)
+    const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
+
+    // 2) Источник данных блокчейна:
+    //   - Рекомендуется PROXY_URL (свой сервер), чтобы не светить API key.
+    //   - Фоллбек: прямой toncenter с ключом из query (?api=KEY). Это НЕ безопасно.
+    const PROXY_URL = null; // например: "https://your-domain.com/ton-get-event"
+
+    const REFRESH_MS = 15000;
+    const MIN_BET = 0.10;
+
+    // --- Данные ---
+    let eventList = [];
+    const state = new Map(); // eventId -> { yes,no,total,isResolved,winningOutcome, lastSyncAt, error }
+
+    // --- Helpers ---
+    function safeBase64ToJson(b64) {
+      // b64 может прийти как обычный base64; пробелы иногда портят URL
+      const norm = (b64 || "").replace(/ /g, "+");
+      const bin = atob(norm);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const text = new TextDecoder("utf-8").decode(bytes);
+      return JSON.parse(text);
+    }
+
+    function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
+
+    function parseAmount(inputValue) {
+      const n = Number.parseFloat(String(inputValue ?? "").replace(",", "."));
+      if (!Number.isFinite(n)) return null;
+      return Math.round(n * 100) / 100;
+    }
+
+    function fmtTon(n) {
+      if (!Number.isFinite(n)) return "--";
+      return n.toFixed(2);
+    }
+
+    function setAppError(msg) {
+      const app = document.getElementById("app");
+      app.innerHTML = "";
+      const div = document.createElement("div");
+      div.className = "error";
+      div.textContent = msg;
+      app.appendChild(div);
+    }
+
+    // --- Toncenter / Proxy ---
+    async function fetchEventFromChain(eventId) {
+      // Возвращает объект:
+      // { yes, no, total, isResolved, winningOutcome }
+      // или бросает ошибку.
+
+      if (PROXY_URL) {
+        // Ожидаем JSON: { ok:true, data:{ yes,no,isResolved,winningOutcome } }
+        const r = await fetch(`${PROXY_URL}?address=${encodeURIComponent(CONTRACT)}&id=${encodeURIComponent(eventId)}`);
+        const j = await r.json();
+        if (!j || !j.ok) throw new Error(j?.error || "Proxy error");
+        const yes = Number(j.data.yes);
+        const no = Number(j.data.no);
+        const isResolved = !!j.data.isResolved;
+        const winningOutcome = !!j.data.winningOutcome;
+        return { yes, no, total: yes + no, isResolved, winningOutcome };
+      }
+
+      // Fallback: прямой toncenter (НЕ безопасно, ключ будет в ссылке)
+      const params = new URLSearchParams(window.location.search);
+      const API_KEY = params.get("api"); // ?api=...
+      if (!API_KEY) throw new Error("Нет доступа к данным (не задан ?api=... и не настроен PROXY_URL)");
+
+      // toncenter JSON-RPC handler [web:66]
+      const res = await fetch("https://toncenter.com/api/v2/jsonRPC", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: "2.0",
+          method: "runGetMethod",
+          params: {
+            address: CONTRACT,
+            method: "get_event",
+            stack: [["num", String(eventId)]],
+          },
+        }),
+      });
+
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || "Toncenter error");
+
+      // Стек зависит от провайдера/формата; твой предыдущий код доставал elements[0..3].
+      // Оставим максимально совместимый парсер:
+      const stack0 = json?.result?.stack?.[0];
+      if (!stack0) throw new Error("Пустой ответ get_event (возможно, события нет)");
+
+      // Ожидаем tuple в stack[0]
+      const tuple = stack0[1];
+      const elements = tuple?.elements;
+      if (!Array.isArray(elements) || elements.length < 4) throw new Error("Неожиданный формат стека get_event");
+
+      // totalYes, totalNo (coins), isResolved (bool), winningOutcome (bool)
+      const yesNano = BigInt(elements[0]?.number?.number ?? elements[0]?.number ?? "0");
+      const noNano  = BigInt(elements[1]?.number?.number ?? elements[1]?.number ?? "0");
+
+      // bool в toncenter часто "0"/"1" как number.number
+      const isResolvedRaw = elements[2]?.number?.number ?? elements[2]?.number ?? "0";
+      const winningRaw    = elements[3]?.number?.number ?? elements[3]?.number ?? "0";
+
+      const yes = Number(yesNano) / 1e9;
+      const no  = Number(noNano) / 1e9;
+
+      const isResolved = String(isResolvedRaw) === "1";
+      const winningOutcome = String(winningRaw) === "1";
+
+      return { yes, no, total: yes + no, isResolved, winningOutcome };
+    }
+
+    // --- UI ---
+    function buildCard(event) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.eventId = String(event.id);
+
+      const h2 = document.createElement("h2");
+      h2.textContent = event.title || `Событие #${event.id}`;
+      card.appendChild(h2);
+
+      const poll = document.createElement("div");
+      poll.className = "poll-container";
+      const barYes = document.createElement("div");
+      barYes.className = "poll-yes";
+      barYes.id = `bar-y-${event.id}`;
+      barYes.style.width = "50%";
+      const barNo = document.createElement("div");
+      barNo.className = "poll-no";
+      barNo.id = `bar-n-${event.id}`;
+      barNo.style.width = "50%";
+      poll.appendChild(barYes);
+      poll.appendChild(barNo);
+      card.appendChild(poll);
+
+      const stats = document.createElement("div");
+      stats.className = "stats-text";
+      const txtY = document.createElement("span");
+      txtY.id = `txt-y-${event.id}`;
+      txtY.textContent = "ДА: --";
+      const txtN = document.createElement("span");
+      txtN.id = `txt-n-${event.id}`;
+      txtN.textContent = "НЕТ: --";
+      stats.appendChild(txtY);
+      stats.appendChild(txtN);
+      card.appendChild(stats);
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "decimal";
+      input.min = String(MIN_BET);
+      input.step = "0.01";
+      input.placeholder = "Сумма TON";
+      input.id = `am-${event.id}`;
+      input.addEventListener("input", () => renderEstimate(event.id));
+      card.appendChild(input);
+
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = `Минимум ${MIN_BET.toFixed(2)} TON.`;
+      card.appendChild(hint);
+
+      const est = document.createElement("div");
+      est.className = "win-estimate";
+      est.id = `est-${event.id}`;
+      est.textContent = "Укажите сумму для прогноза";
+      card.appendChild(est);
+
+      const btnGrid = document.createElement("div");
+      btnGrid.className = "btn-grid";
+
+      const btnYes = document.createElement("button");
+      btnYes.className = "btn-yes";
+      btnYes.textContent = "ДА";
+      btnYes.addEventListener("click", () => doBet(event.id, true));
+
+      const btnNo = document.createElement("button");
+      btnNo.className = "btn-no";
+      btnNo.textContent = "НЕТ";
+      btnNo.addEventListener("click", () => doBet(event.id, false));
+
+      btnGrid.appendChild(btnYes);
+      btnGrid.appendChild(btnNo);
+      card.appendChild(btnGrid);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const badge = document.createElement("div");
+      badge.className = "badge";
+      badge.id = `meta-${event.id}`;
+      badge.textContent = "Обновление: --";
+      const status = document.createElement("div");
+      status.id = `status-${event.id}`;
+      status.textContent = "";
+      meta.appendChild(badge);
+      meta.appendChild(status);
+      card.appendChild(meta);
+
+      return card;
+    }
+
+    function setCardResolved(eventId, winningOutcome) {
+      const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
+      if (!card) return;
+
+      const status = document.getElementById(`status-${eventId}`);
+      if (status) {
+        status.textContent = `Завершено: ${winningOutcome ? "ДА" : "НЕТ"}`;
+        status.className = "success";
+      }
+
+      // Disable bet buttons
+      const buttons = card.querySelectorAll("button");
+      buttons.forEach(b => b.disabled = true);
+
+      // Update estimate text
+      const est = document.getElementById(`est-${eventId}`);
+      if (est) est.innerHTML = `Событие завершено. Забрать выигрыш можно через бота командой <b>/claim ${eventId}</b>.`;
+    }
+
+    function renderFromState(eventId) {
+      const info = state.get(eventId);
+      if (!info) return;
+
+      const y = info.yes;
+      const n = info.no;
+      const total = info.total;
+
+      const yP = total > 0 ? Math.round((y / total) * 100) : 50;
+
+      const barY = document.getElementById(`bar-y-${eventId}`);
+      const barN = document.getElementById(`bar-n-${eventId}`);
+      if (barY) barY.style.width = `${clamp(yP, 0, 100)}%`;
+      if (barN) barN.style.width = `${clamp(100 - yP, 0, 100)}%`;
+
+      const txtY = document.getElementById(`txt-y-${eventId}`);
+      const txtN = document.getElementById(`txt-n-${eventId}`);
+      if (txtY) txtY.textContent = `ДА: ${yP}% (${fmtTon(y)} T)`;
+      if (txtN) txtN.textContent = `НЕТ: ${100 - yP}% (${fmtTon(n)} T)`;
+
+      const meta = document.getElementById(`meta-${eventId}`);
+      if (meta) meta.textContent = `Обновление: ${new Date(info.lastSyncAt).toLocaleTimeString()}`;
+
+      if (info.isResolved) setCardResolved(eventId, info.winningOutcome);
+
+      renderEstimate(eventId);
+    }
+
+    function renderEstimate(eventId) {
+      const est = document.getElementById(`est-${eventId}`);
+      const input = document.getElementById(`am-${eventId}`);
+      const info = state.get(eventId);
+
+      if (!est) return;
+      if (!info) { est.textContent = "Нет данных с блокчейна"; return; }
+      if (info.isResolved) return;
+
+      const amount = parseAmount(input?.value);
+      if (amount === null) { est.textContent = "Укажите сумму для прогноза"; return; }
+      if (amount < MIN_BET) { est.textContent = `Минимальная ставка ${MIN_BET.toFixed(2)} TON`; return; }
+
+      const yesPool = info.yes;
+      const noPool = info.no;
+
+      // Если пула нет вообще — прогноз бессмысленен
+      if ((yesPool + noPool) <= 0) { est.textContent = "Пока нет ставок — прогноз недоступен"; return; }
+
+      // Тотализатор с 10% комиссии с проигрышного пула (как у тебя)
+      const fee = 0.9;
+
+      const denomYes = (yesPool + amount);
+      const denomNo = (noPool + amount);
+
+      // Защита от деления на 0
+      if (denomYes <= 0 || denomNo <= 0) { est.textContent = "Недостаточно данных для расчёта"; return; }
+
+      const winIfYes = amount + (amount / denomYes) * (noPool * fee);
+      const winIfNo  = amount + (amount / denomNo)  * (yesPool * fee);
+
+      est.innerHTML =
+        `Победа <b>ДА</b>: ~${winIfYes.toFixed(2)} T <span class="profit">(+${(winIfYes - amount).toFixed(2)})</span><br>` +
+        `Победа <b>НЕТ</b>: ~${winIfNo.toFixed(2)} T <span class="profit">(+${(winIfNo - amount).toFixed(2)})</span>`;
+    }
+
+    async function syncEvent(eventId) {
+      try {
+        const data = await fetchEventFromChain(eventId);
+        state.set(eventId, { ...data, lastSyncAt: Date.now(), error: null });
+        renderFromState(eventId);
+      } catch (e) {
+        const prev = state.get(eventId) || {};
+        state.set(eventId, { ...prev, lastSyncAt: Date.now(), error: String(e?.message || e) });
+        const meta = document.getElementById(`meta-${eventId}`);
+        if (meta) meta.textContent = `Ошибка обновления`;
+      }
+    }
+
+    function setSending(eventId, isSending, message) {
+      const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
+      const status = document.getElementById(`status-${eventId}`);
+      if (status) status.textContent = message || "";
+      if (card) {
+        const buttons = card.querySelectorAll("button");
+        buttons.forEach(b => b.disabled = isSending);
+      }
+    }
+
+    function doBet(eventId, outcome) {
+      const info = state.get(eventId);
+      if (info?.isResolved) return;
+
+      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
+      if (amount === null || amount < MIN_BET) {
+        setSending(eventId, false, `Введите сумму (мин. ${MIN_BET.toFixed(2)} TON)`);
+        return;
+      }
+
+      if (!tg) {
+        setSending(eventId, false, "Открой через Telegram");
+        return;
+      }
+
+      setSending(eventId, true, "Отправляем в бота...");
+
+      try {
+        tg.sendData(JSON.stringify({ eventId, outcome, amount: amount.toFixed(2) }));
+        setSending(eventId, false, "✅ Отправлено. Заверши оплату в чате с ботом.");
+        // Не закрываем автоматически: пусть пользователь увидит статус
+      } catch (e) {
+        setSending(eventId, false, "Ошибка отправки в бота");
+      }
+    }
+
+    // --- Init ---
+    (function main() {
+      const params = new URLSearchParams(window.location.search);
+      const b64Data = params.get("data");
+      if (!b64Data) {
+        setAppError("Нет данных событий (параметр ?data=...). Открой WebApp через бота.");
+        return;
+      }
+
+      try {
+        eventList = safeBase64ToJson(b64Data);
+        if (!Array.isArray(eventList)) throw new Error("data is not array");
+      } catch {
+        setAppError("Не удалось прочитать список событий. Открой WebApp заново через бота.");
+        return;
+      }
+
+      const app = document.getElementById("app");
+      app.innerHTML = "";
+
+      if (eventList.length === 0) {
+        app.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
+        return;
+      }
+
+      for (const ev of eventList) {
+        // базовая валидация
+        if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
+        const card = buildCard(ev);
+        app.appendChild(card);
+      }
+
+      // первичная синхронизация и таймер
+      const ids = eventList.map(e => e.id).filter(id => Number.isFinite(id));
+      ids.forEach(id => syncEvent(id));
+      setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
+    })();
+  </script>
 </body>
-
 </html>
