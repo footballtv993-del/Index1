@@ -80,7 +80,7 @@
       app.appendChild(div);
     }
 
-    // --- Универсальный парсер stack (разные форматы toncenter) ---
+    // --- Универсальный парсер stack ---
     function hexToBigInt(x) {
       if (typeof x !== "string") return null;
       if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
@@ -106,14 +106,11 @@
     }
 
     function extractTupleElements(stackItem) {
-      // Формат 1: [ "tuple", { elements:[...] } ]
       if (Array.isArray(stackItem) && stackItem.length >= 2) {
         const maybe = stackItem[1];
         const elements = maybe?.elements;
         if (Array.isArray(elements)) return elements;
       }
-
-      // Формат 2: { type:"tuple", value:[...] } или похожий
       if (stackItem && typeof stackItem === "object") {
         const t = stackItem.type ?? stackItem["@type"];
         if (t && String(t).toLowerCase().includes("tuple")) {
@@ -122,7 +119,6 @@
           if (v?.elements && Array.isArray(v.elements)) return v.elements;
         }
       }
-
       return null;
     }
 
@@ -132,7 +128,6 @@
       let elements = extractTupleElements(stack[0]);
 
       if (!elements) {
-        // Иногда stack уже "расплющен"
         if (stack.length >= 4 && (stack[0]?.number || stack[0]?.type === "num")) {
           elements = stack;
         } else {
@@ -154,12 +149,22 @@
       return { yesNano, noNano, isResolved, winningOutcome };
     }
 
+    function isNullOptionalEvent(stack) {
+      // То, что ты прислал: [["list",{"@type":"tvm.list","elements":[]}]]
+      return (
+        Array.isArray(stack) &&
+        Array.isArray(stack[0]) &&
+        stack[0][0] === "list" &&
+        Array.isArray(stack[0][1]?.elements) &&
+        stack[0][1].elements.length === 0
+      );
+    }
+
     async function fetchEventFromToncenter(eventId) {
       const params = new URLSearchParams(window.location.search);
       const API_KEY = params.get("api");
       if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
 
-      // Ключ передаем query-параметром -> меньше CORS проблем [web:87][web:88]
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
 
       const res = await fetch(url, {
@@ -181,8 +186,13 @@
       if (json.error) throw new Error(json.error.message || "Toncenter error");
 
       const stack = json?.result?.stack;
-      const parsed = extractEventDataFromStack(stack);
 
+      // ВАЖНО: событие ещё не появилось в контракте (нет ставок) => getter вернул null
+      if (isNullOptionalEvent(stack)) {
+        return { yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false };
+      }
+
+      const parsed = extractEventDataFromStack(stack);
       if (!parsed) {
         const short = JSON.stringify(stack)?.slice(0, 260);
         throw new Error("Неожиданный формат stack: " + short);
@@ -350,7 +360,10 @@
       const yesPool = info.yes;
       const noPool = info.no;
 
-      if ((yesPool + noPool) <= 0) { est.textContent = "Пока нет ставок — прогноз недоступен"; return; }
+      if ((yesPool + noPool) <= 0) {
+        est.textContent = "Пока нет ставок — стань первым.";
+        return;
+      }
 
       const fee = 0.9;
 
