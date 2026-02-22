@@ -47,7 +47,7 @@
     const MIN_BET = 0.10;
 
     let eventList = [];
-    const state = new Map(); // eventId -> { yes,no,total,isResolved,winningOutcome,lastSyncAt,error }
+    const state = new Map();
 
     function safeBase64ToJson(b64) {
       const norm = (b64 || "").replace(/ /g, "+");
@@ -80,13 +80,86 @@
       app.appendChild(div);
     }
 
+    // --- Универсальный парсер stack (разные форматы toncenter) ---
+    function hexToBigInt(x) {
+      if (typeof x !== "string") return null;
+      if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
+      if (/^\d+$/.test(x)) return BigInt(x);
+      return null;
+    }
+
+    function asBigIntFromElement(el) {
+      const a = el?.number?.number ?? el?.number;
+      if (a !== undefined) {
+        try { return BigInt(String(a)); } catch {}
+      }
+      const b = el?.value ?? el?.num ?? el?.valueHex;
+      const bi = hexToBigInt(String(b ?? ""));
+      if (bi !== null) return bi;
+      return null;
+    }
+
+    function asBoolFromElement(el) {
+      const bi = asBigIntFromElement(el);
+      if (bi === null) return null;
+      return bi !== 0n;
+    }
+
+    function extractTupleElements(stackItem) {
+      // Формат 1: [ "tuple", { elements:[...] } ]
+      if (Array.isArray(stackItem) && stackItem.length >= 2) {
+        const maybe = stackItem[1];
+        const elements = maybe?.elements;
+        if (Array.isArray(elements)) return elements;
+      }
+
+      // Формат 2: { type:"tuple", value:[...] } или похожий
+      if (stackItem && typeof stackItem === "object") {
+        const t = stackItem.type ?? stackItem["@type"];
+        if (t && String(t).toLowerCase().includes("tuple")) {
+          const v = stackItem.value ?? stackItem.elements ?? stackItem.tuple;
+          if (Array.isArray(v)) return v;
+          if (v?.elements && Array.isArray(v.elements)) return v.elements;
+        }
+      }
+
+      return null;
+    }
+
+    function extractEventDataFromStack(stack) {
+      if (!Array.isArray(stack)) return null;
+
+      let elements = extractTupleElements(stack[0]);
+
+      if (!elements) {
+        // Иногда stack уже "расплющен"
+        if (stack.length >= 4 && (stack[0]?.number || stack[0]?.type === "num")) {
+          elements = stack;
+        } else {
+          for (const it of stack) {
+            const el = extractTupleElements(it);
+            if (el) { elements = el; break; }
+          }
+        }
+      }
+
+      if (!elements || elements.length < 4) return null;
+
+      const yesNano = asBigIntFromElement(elements[0]);
+      const noNano = asBigIntFromElement(elements[1]);
+      const isResolved = asBoolFromElement(elements[2]);
+      const winningOutcome = asBoolFromElement(elements[3]);
+
+      if (yesNano === null || noNano === null || isResolved === null || winningOutcome === null) return null;
+      return { yesNano, noNano, isResolved, winningOutcome };
+    }
+
     async function fetchEventFromToncenter(eventId) {
       const params = new URLSearchParams(window.location.search);
-      const API_KEY = params.get("api"); // bot.ts должен добавлять &api=... в ссылку
-
+      const API_KEY = params.get("api");
       if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
 
-      // Ключ передаём как api_key в query (без X-API-Key header) -> меньше проблем с CORS [web:87][web:88]
+      // Ключ передаем query-параметром -> меньше CORS проблем [web:87][web:88]
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
 
       const res = await fetch(url, {
@@ -107,31 +180,27 @@
       const json = await res.json();
       if (json.error) throw new Error(json.error.message || "Toncenter error");
 
-      const stack0 = json?.result?.stack?.[0];
-      if (!stack0) throw new Error("Пустой stack (возможно, события нет)");
+      const stack = json?.result?.stack;
+      const parsed = extractEventDataFromStack(stack);
 
-      const tuple = stack0[1];
-      const el = tuple?.elements;
-      if (!Array.isArray(el) || el.length < 4) throw new Error("Неожиданный формат stack");
+      if (!parsed) {
+        const short = JSON.stringify(stack)?.slice(0, 260);
+        throw new Error("Неожиданный формат stack: " + short);
+      }
 
-      const yesNano = BigInt(el[0]?.number?.number ?? el[0]?.number ?? "0");
-      const noNano  = BigInt(el[1]?.number?.number ?? el[1]?.number ?? "0");
-
-      const isResolvedRaw = el[2]?.number?.number ?? el[2]?.number ?? "0";
-      const winningRaw    = el[3]?.number?.number ?? el[3]?.number ?? "0";
-
-      const yes = Number(yesNano) / 1e9;
-      const no  = Number(noNano) / 1e9;
+      const yes = Number(parsed.yesNano) / 1e9;
+      const no = Number(parsed.noNano) / 1e9;
 
       return {
         yes,
         no,
         total: yes + no,
-        isResolved: String(isResolvedRaw) === "1",
-        winningOutcome: String(winningRaw) === "1",
+        isResolved: parsed.isResolved,
+        winningOutcome: parsed.winningOutcome,
       };
     }
 
+    // --- UI ---
     function buildCard(event) {
       const card = document.createElement("div");
       card.className = "card";
@@ -231,8 +300,7 @@
         status.className = "success";
       }
 
-      const buttons = card.querySelectorAll("button");
-      buttons.forEach(b => b.disabled = true);
+      card.querySelectorAll("button").forEach(b => b.disabled = true);
 
       const est = document.getElementById(`est-${eventId}`);
       if (est) est.innerHTML = `Событие завершено. Забрать выигрыш можно через бота командой <b>/claim ${eventId}</b>.`;
@@ -317,10 +385,7 @@
       const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
       const status = document.getElementById(`status-${eventId}`);
       if (status) status.textContent = message || "";
-      if (card) {
-        const buttons = card.querySelectorAll("button");
-        buttons.forEach(b => b.disabled = isSending);
-      }
+      if (card) card.querySelectorAll("button").forEach(b => b.disabled = isSending);
     }
 
     function doBet(eventId, outcome) {
