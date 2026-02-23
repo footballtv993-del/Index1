@@ -51,7 +51,7 @@
     }
 
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
-    h2 { font-size: 18px; color: #222; margin:  0 0 10px 0; line-height: 1.35; text-align: center; }
+    h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
     .event-img {
       width: 100%;
@@ -104,7 +104,7 @@
       showbiz: "Шоу-Бизнес",
     };
 
-    // Показывать подсказку об обновлении не чаще 1 раза в час
+    // Попап об обновлении (не чаще 1 раза в час)
     const ENTRY_POPUP_KEY = "ho_last_update_hint_at";
     const ENTRY_POPUP_EVERY_MS = 60 * 60 * 1000;
 
@@ -166,19 +166,37 @@
 
       const msg =
         "Возможны новые события.\n" +
-        "Чтобы увидеть актуальный список: закрой WebApp и открой заново через бота (кнопка “Все события” или /events).";
+        "Нажми “Обновить сейчас” — я пришлю новую кнопку в чат.";
 
-      // Telegram нативный попап/алерт
+      const doRefresh = () => {
+        if (!tg) {
+          showTopNote("Открой приложение через Telegram.");
+          return;
+        }
+        try {
+          tg.sendData(JSON.stringify({ type: "refresh" }));
+          setTimeout(() => tg.close(), 150);
+        } catch {
+          showTopNote("Не удалось отправить запрос боту. Напиши /events в чате.");
+        }
+      };
+
       if (tg?.showPopup) {
         tg.showPopup({
           title: "Обновление событий",
           message: msg.slice(0, 256),
-          buttons: [{ type: "close", text: "Понял" }]
+          buttons: [
+            { id: "refresh_now", type: "default", text: "Обновить сейчас" },
+            { type: "close", text: "Позже" }
+          ]
+        }, (btnId) => {
+          if (btnId === "refresh_now") doRefresh();
         });
+      } else if (tg?.showConfirm) {
+        tg.showConfirm(msg, (ok) => { if (ok) doRefresh(); });
       } else if (tg?.showAlert) {
         tg.showAlert(msg);
       } else {
-        // Если открыли не в Telegram
         showTopNote(msg);
       }
 
@@ -331,13 +349,7 @@
         bar.appendChild(el);
       });
 
-      // Кнопку "↻ Обновить" удалили по твоей просьбе
       return bar;
-    }
-
-    function shouldShowEvent(ev) {
-      if (activeCategory === "all") return true;
-      return String(ev.category || "").toLowerCase() === activeCategory;
     }
 
     function buildCard(event) {
@@ -623,12 +635,13 @@
 
       if (eventList.length === 0) {
         app.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
+        maybeShowUpdateHintOncePerHour();
         return;
       }
 
       renderApp(app);
 
-      // Попап/подсказка при входе (не чаще 1 раза в час)
+      // Раз в час предлагаем обновить список (через бота)
       maybeShowUpdateHintOncePerHour();
     })();
   </script>
