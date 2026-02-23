@@ -37,6 +37,19 @@
       border-color: #111827;
     }
 
+    .top-note{
+      display:none;
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 10px 12px;
+      margin: 0 0 12px 0;
+      color:#374151;
+      font-size: 13px;
+      font-weight: 650;
+      line-height: 1.35;
+    }
+
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
     h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
@@ -93,6 +106,7 @@
 
     let eventList = [];
     let activeCategory = "all";
+    let refreshTimer = null;
     const state = new Map();
 
     function safeBase64ToJson(b64) {
@@ -124,6 +138,13 @@
       div.className = "error";
       div.textContent = msg;
       app.appendChild(div);
+    }
+
+    function showTopNote(text) {
+      const note = document.getElementById("top-note");
+      if (!note) return;
+      note.textContent = text;
+      note.style.display = "block";
     }
 
     function hexToBigInt(x) {
@@ -266,12 +287,28 @@
         el.textContent = ch.label;
         el.onclick = () => {
           activeCategory = ch.key;
-          // перерисуем чипы и список
           container.innerHTML = "";
           renderApp(container);
         };
         bar.appendChild(el);
       });
+
+      const refresh = document.createElement("div");
+      refresh.className = "chip";
+      refresh.textContent = "↻ Обновить";
+      refresh.onclick = () => {
+        if (!tg) {
+          showTopNote("Открой приложение через Telegram.");
+          return;
+        }
+        try {
+          tg.sendData(JSON.stringify({ type: "refresh" }));
+          showTopNote("Запрос отправлен. Открой чат с ботом и нажми “Все события” (или /events).");
+        } catch {
+          showTopNote("Не удалось отправить запрос боту. Попробуй /events в чате.");
+        }
+      };
+      bar.appendChild(refresh);
 
       return bar;
     }
@@ -393,7 +430,7 @@
       card.querySelectorAll("button").forEach(b => b.disabled = true);
 
       const est = document.getElementById(`est-${eventId}`);
-      if (est) est.innerHTML = `Событие завершено. Забрать выигрыш можно через бота командой <b>/claim ${eventId}</b>.`;
+      if (est) est.innerHTML = `Событие завершено. Ожидай сообщение от бота с кнопкой выигрыша.`;
     }
 
     function renderFromState(eventId) {
@@ -504,7 +541,19 @@
       }
     }
 
+    function clearTimer() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    }
+
     function renderApp(root) {
+      const note = document.createElement("div");
+      note.id = "top-note";
+      note.className = "top-note";
+      root.appendChild(note);
+
       root.appendChild(buildFilters(root));
 
       const ids = [];
@@ -512,7 +561,7 @@
 
       for (const ev of eventList) {
         if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
-        if (!shouldShowEvent(ev)) continue;
+        if (activeCategory !== "all" && String(ev.category || "").toLowerCase() !== activeCategory) continue;
 
         shown++;
         ids.push(ev.id);
@@ -526,10 +575,9 @@
         root.appendChild(empty);
       }
 
-      // сразу синхронизируем только видимые карточки
       ids.forEach(id => syncEvent(id));
-      // и обновляем раз в REFRESH_MS
-      setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
+      clearTimer();
+      refreshTimer = setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
     }
 
     (function main() {
