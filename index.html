@@ -10,7 +10,19 @@
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
-    h2 { font-size: 18px; color: #222; margin: 0 0 14px 0; line-height: 1.35; text-align: center; }
+    h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
+
+    /* Фото как на твоём стиле: широкое, компактное по высоте */
+    .event-img {
+      width: 100%;
+      height: 160px;
+      border-radius: 18px;
+      margin: 8px 0 14px 0;
+      display: block;
+      object-fit: cover;
+      background: #f3f4f6;
+    }
+
     .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
     .poll-yes { background: #34c759; transition: width 0.6s; }
     .poll-no { background: #ff3b30; transition: width 0.6s; }
@@ -41,7 +53,6 @@
     const tg = window.Telegram?.WebApp;
     if (tg) tg.ready();
 
-    // --- Конфиг ---
     const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
     const REFRESH_MS = 15000;
     const MIN_BET = 0.10;
@@ -80,7 +91,6 @@
       app.appendChild(div);
     }
 
-    // --- Универсальный парсер stack ---
     function hexToBigInt(x) {
       if (typeof x !== "string") return null;
       if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
@@ -90,9 +100,7 @@
 
     function asBigIntFromElement(el) {
       const a = el?.number?.number ?? el?.number;
-      if (a !== undefined) {
-        try { return BigInt(String(a)); } catch {}
-      }
+      if (a !== undefined) { try { return BigInt(String(a)); } catch {} }
       const b = el?.value ?? el?.num ?? el?.valueHex;
       const bi = hexToBigInt(String(b ?? ""));
       if (bi !== null) return bi;
@@ -150,7 +158,6 @@
     }
 
     function isNullOptionalEvent(stack) {
-      // То, что ты прислал: [["list",{"@type":"tvm.list","elements":[]}]]
       return (
         Array.isArray(stack) &&
         Array.isArray(stack[0]) &&
@@ -187,7 +194,6 @@
 
       const stack = json?.result?.stack;
 
-      // ВАЖНО: событие ещё не появилось в контракте (нет ставок) => getter вернул null
       if (isNullOptionalEvent(stack)) {
         return { yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false };
       }
@@ -210,7 +216,6 @@
       };
     }
 
-    // --- UI ---
     function buildCard(event) {
       const card = document.createElement("div");
       card.className = "card";
@@ -219,6 +224,17 @@
       const h2 = document.createElement("h2");
       h2.textContent = event.title || `Событие #${event.id}`;
       card.appendChild(h2);
+
+      // Фото под заголовком
+      if (event.image_url && /^https:\/\//i.test(String(event.image_url))) {
+        const img = document.createElement("img");
+        img.className = "event-img";
+        img.src = String(event.image_url);
+        img.alt = "";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        card.appendChild(img);
+      }
 
       const poll = document.createElement("div");
       poll.className = "poll-container";
@@ -366,7 +382,6 @@
       }
 
       const fee = 0.9;
-
       const denomYes = (yesPool + amount);
       const denomNo = (noPool + amount);
       if (denomYes <= 0 || denomNo <= 0) { est.textContent = "Недостаточно данных для расчёта"; return; }
