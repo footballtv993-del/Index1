@@ -9,10 +9,37 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 6px 2px 12px 2px;
+      margin-bottom: 6px;
+      scrollbar-width: none;
+    }
+    .filters::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: 0 0 auto;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #111827;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .chip.active {
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }
+
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
     h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
-    /* Фото как на твоём стиле: широкое, компактное по высоте */
     .event-img {
       width: 100%;
       height: 160px;
@@ -57,7 +84,15 @@
     const REFRESH_MS = 15000;
     const MIN_BET = 0.10;
 
+    const CATEGORY_LABELS = {
+      sport: "Спорт",
+      politics: "Политика",
+      finance: "Финансы",
+      showbiz: "Шоу-Бизнес",
+    };
+
     let eventList = [];
+    let activeCategory = "all";
     const state = new Map();
 
     function safeBase64ToJson(b64) {
@@ -216,6 +251,36 @@
       };
     }
 
+    function buildFilters(container) {
+      const bar = document.createElement("div");
+      bar.className = "filters";
+
+      const chips = [
+        { key: "all", label: "Все" },
+        ...Object.keys(CATEGORY_LABELS).map(k => ({ key: k, label: CATEGORY_LABELS[k] }))
+      ];
+
+      chips.forEach(ch => {
+        const el = document.createElement("div");
+        el.className = "chip" + (ch.key === activeCategory ? " active" : "");
+        el.textContent = ch.label;
+        el.onclick = () => {
+          activeCategory = ch.key;
+          // перерисуем чипы и список
+          container.innerHTML = "";
+          renderApp(container);
+        };
+        bar.appendChild(el);
+      });
+
+      return bar;
+    }
+
+    function shouldShowEvent(ev) {
+      if (activeCategory === "all") return true;
+      return String(ev.category || "").toLowerCase() === activeCategory;
+    }
+
     function buildCard(event) {
       const card = document.createElement("div");
       card.className = "card";
@@ -225,7 +290,6 @@
       h2.textContent = event.title || `Событие #${event.id}`;
       card.appendChild(h2);
 
-      // Фото под заголовком
       if (event.image_url && /^https:\/\//i.test(String(event.image_url))) {
         const img = document.createElement("img");
         img.className = "event-img";
@@ -356,7 +420,6 @@
       if (meta) meta.textContent = `Обновление: ${new Date(info.lastSyncAt).toLocaleTimeString()}`;
 
       if (info.isResolved) setCardResolved(eventId, info.winningOutcome);
-
       renderEstimate(eventId);
     }
 
@@ -441,6 +504,34 @@
       }
     }
 
+    function renderApp(root) {
+      root.appendChild(buildFilters(root));
+
+      const ids = [];
+      let shown = 0;
+
+      for (const ev of eventList) {
+        if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
+        if (!shouldShowEvent(ev)) continue;
+
+        shown++;
+        ids.push(ev.id);
+        root.appendChild(buildCard(ev));
+      }
+
+      if (shown === 0) {
+        const empty = document.createElement("div");
+        empty.className = "loading";
+        empty.textContent = "В этой категории пока нет событий";
+        root.appendChild(empty);
+      }
+
+      // сразу синхронизируем только видимые карточки
+      ids.forEach(id => syncEvent(id));
+      // и обновляем раз в REFRESH_MS
+      setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
+    }
+
     (function main() {
       const params = new URLSearchParams(window.location.search);
       const b64Data = params.get("data");
@@ -465,15 +556,7 @@
         return;
       }
 
-      const ids = [];
-      for (const ev of eventList) {
-        if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
-        ids.push(ev.id);
-        app.appendChild(buildCard(ev));
-      }
-
-      ids.forEach(id => syncEvent(id));
-      setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
+      renderApp(app);
     })();
   </script>
 </body>
