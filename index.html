@@ -51,7 +51,7 @@
     }
 
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
-    h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
+    h2 { font-size: 18px; color: #222; margin:  0 0 10px 0; line-height: 1.35; text-align: center; }
 
     .event-img {
       width: 100%;
@@ -104,6 +104,10 @@
       showbiz: "Шоу-Бизнес",
     };
 
+    // Показывать подсказку об обновлении не чаще 1 раза в час
+    const ENTRY_POPUP_KEY = "ho_last_update_hint_at";
+    const ENTRY_POPUP_EVERY_MS = 60 * 60 * 1000;
+
     let eventList = [];
     let activeCategory = "all";
     let refreshTimer = null;
@@ -145,6 +149,40 @@
       if (!note) return;
       note.textContent = text;
       note.style.display = "block";
+    }
+
+    function maybeShowUpdateHintOncePerHour() {
+      const now = Date.now();
+      let last = 0;
+
+      try {
+        last = Number(localStorage.getItem(ENTRY_POPUP_KEY) || "0");
+        if (!Number.isFinite(last)) last = 0;
+      } catch {
+        last = 0;
+      }
+
+      if (now - last < ENTRY_POPUP_EVERY_MS) return;
+
+      const msg =
+        "Возможны новые события.\n" +
+        "Чтобы увидеть актуальный список: закрой WebApp и открой заново через бота (кнопка “Все события” или /events).";
+
+      // Telegram нативный попап/алерт
+      if (tg?.showPopup) {
+        tg.showPopup({
+          title: "Обновление событий",
+          message: msg.slice(0, 256),
+          buttons: [{ type: "close", text: "Понял" }]
+        });
+      } else if (tg?.showAlert) {
+        tg.showAlert(msg);
+      } else {
+        // Если открыли не в Telegram
+        showTopNote(msg);
+      }
+
+      try { localStorage.setItem(ENTRY_POPUP_KEY, String(now)); } catch {}
     }
 
     function hexToBigInt(x) {
@@ -293,23 +331,7 @@
         bar.appendChild(el);
       });
 
-      const refresh = document.createElement("div");
-      refresh.className = "chip";
-      refresh.textContent = "↻ Обновить";
-      refresh.onclick = () => {
-        if (!tg) {
-          showTopNote("Открой приложение через Telegram.");
-          return;
-        }
-        try {
-          tg.sendData(JSON.stringify({ type: "refresh" }));
-          showTopNote("Запрос отправлен. Открой чат с ботом и нажми “Все события” (или /events).");
-        } catch {
-          showTopNote("Не удалось отправить запрос боту. Попробуй /events в чате.");
-        }
-      };
-      bar.appendChild(refresh);
-
+      // Кнопку "↻ Обновить" удалили по твоей просьбе
       return bar;
     }
 
@@ -605,6 +627,9 @@
       }
 
       renderApp(app);
+
+      // Попап/подсказка при входе (не чаще 1 раза в час)
+      maybeShowUpdateHintOncePerHour();
     })();
   </script>
 </body>
