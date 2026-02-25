@@ -104,16 +104,11 @@
       showbiz: "Шоу-Бизнес",
     };
 
-    // Попап об обновлении (не чаще 1 раза в час)
-    const ENTRY_POPUP_KEY = "ho_last_update_hint_at";
-    const ENTRY_POPUP_EVERY_MS = 60 * 60 * 1000;
-
     let eventList = [];
     let activeCategory = "all";
     let refreshTimer = null;
     const state = new Map();
 
-    // Надежное декодирование Base64 с поддержкой кириллицы и эмодзи
     function safeBase64ToJson(b64) {
       try {
         const jsonString = decodeURIComponent(escape(window.atob((b64 || "").replace(/-/g, "+").replace(/_/g, "/"))));
@@ -136,7 +131,6 @@
       return n.toFixed(2);
     }
 
-    // Утилита для задержки вычислений (Debounce)
     function debounce(func, wait) {
       let timeout;
       return function(...args) {
@@ -159,58 +153,6 @@
       if (!note) return;
       note.textContent = text;
       note.style.display = "block";
-    }
-
-    function maybeShowUpdateHintOncePerHour() {
-      const now = Date.now();
-      let last = 0;
-
-      try {
-        last = Number(localStorage.getItem(ENTRY_POPUP_KEY) || "0");
-        if (!Number.isFinite(last)) last = 0;
-      } catch {
-        last = 0;
-      }
-
-      if (now - last < ENTRY_POPUP_EVERY_MS) return;
-
-      const msg =
-        "Возможны новые события.\n" +
-        "Нажми “Обновить сейчас” — я пришлю новую кнопку в чат.";
-
-      const doRefresh = () => {
-        if (!tg) {
-          showTopNote("Открой приложение через Telegram.");
-          return;
-        }
-        try {
-          tg.sendData(JSON.stringify({ type: "refresh" }));
-          setTimeout(() => tg.close(), 150);
-        } catch {
-          showTopNote("Не удалось отправить запрос боту. Напиши /events в чате.");
-        }
-      };
-
-      if (tg?.showPopup) {
-        tg.showPopup({
-          title: "Обновление событий",
-          message: msg.slice(0, 256),
-          buttons: [
-            { id: "refresh_now", type: "default", text: "Обновить сейчас" },
-            { type: "close", text: "Позже" }
-          ]
-        }, (btnId) => {
-          if (btnId === "refresh_now") doRefresh();
-        });
-      } else if (tg?.showConfirm) {
-        tg.showConfirm(msg, (ok) => { if (ok) doRefresh(); });
-      } else if (tg?.showAlert) {
-        tg.showAlert(msg);
-      } else {
-        showTopNote(msg);
-      }
-
-      try { localStorage.setItem(ENTRY_POPUP_KEY, String(now)); } catch {}
     }
 
     function hexToBigInt(x) {
@@ -289,7 +231,6 @@
       );
     }
 
-   // ИСПРАВЛЕННАЯ ФУНКЦИЯ: Умная клиентская очередь запросов (Chunking)
     async function fetchAllEventsFromToncenter(eventIds) {
       if (!eventIds || eventIds.length === 0) return [];
 
@@ -300,13 +241,11 @@
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
       const results = [];
 
-      // Разбиваем запросы на группы по 3 штуки
       const chunkSize = 3;
       
       for (let i = 0; i < eventIds.length; i += chunkSize) {
         const chunk = eventIds.slice(i, i + chunkSize);
         
-        // Запускаем 3 запроса параллельно
         const promises = chunk.map(async (eventId) => {
           try {
             const res = await fetch(url, {
@@ -360,11 +299,9 @@
           }
         });
 
-        // Ждем завершения текущей группы из 3 запросов
         const chunkResults = await Promise.all(promises);
         results.push(...chunkResults);
 
-        // Делаем паузу в 300мс перед следующей группой, чтобы не злить Toncenter
         if (i + chunkSize < eventIds.length) {
           await new Promise(r => setTimeout(r, 300));
         }
@@ -373,7 +310,6 @@
       return results;
     }
 
-    // НОВАЯ ФУНКЦИЯ: Обработка результатов Batch-запроса
     async function syncAllEvents(eventIds) {
       if (!eventIds.length) return;
       try {
@@ -479,7 +415,6 @@
       input.placeholder = "Сумма TON";
       input.id = `am-${event.id}`;
       
-      // ИСПОЛЬЗУЕМ DEBOUNCE: расчет происходит через 300мс после ввода
       const debouncedRender = debounce(() => renderEstimate(event.id), 300);
       input.addEventListener("input", debouncedRender);
       
@@ -672,7 +607,6 @@
         root.appendChild(empty);
       }
 
-      // ИСПОЛЬЗУЕМ BATCHING: Запрашиваем все ID одним разом
       syncAllEvents(ids);
       clearTimer();
       refreshTimer = setInterval(() => syncAllEvents(ids), REFRESH_MS);
@@ -699,15 +633,11 @@
 
       if (eventList.length === 0) {
         app.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
-        maybeShowUpdateHintOncePerHour();
         return;
       }
 
       renderApp(app);
-
-      maybeShowUpdateHintOncePerHour();
     })();
   </script>
 </body>
 </html>
-
