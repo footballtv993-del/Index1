@@ -113,13 +113,14 @@
     let refreshTimer = null;
     const state = new Map();
 
+    // Надежное декодирование Base64 с поддержкой кириллицы и эмодзи
     function safeBase64ToJson(b64) {
-      const norm = (b64 || "").replace(/ /g, "+");
-      const bin = atob(norm);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const text = new TextDecoder("utf-8").decode(bytes);
-      return JSON.parse(text);
+      try {
+        const jsonString = decodeURIComponent(escape(window.atob((b64 || "").replace(/-/g, "+").replace(/_/g, "/"))));
+        return JSON.parse(jsonString);
+      } catch (e) {
+        throw new Error("Ошибка декодирования данных");
+      }
     }
 
     function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
@@ -133,6 +134,15 @@
     function fmtTon(n) {
       if (!Number.isFinite(n)) return "--";
       return n.toFixed(2);
+    }
+
+    // Утилита для задержки вычислений (Debounce)
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
     }
 
     function setAppError(msg) {
@@ -279,53 +289,108 @@
       );
     }
 
-    async function fetchEventFromToncenter(eventId) {
+    // НОВАЯ ФУНКЦИЯ: Batch запрос всех событий одним вызовом
+    async function fetchAllEventsFromToncenter(eventIds) {
+      if (!eventIds || eventIds.length === 0) return [];
+
       const params = new URLSearchParams(window.location.search);
       const API_KEY = params.get("api");
       if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
 
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
 
+      const rpcPayload = eventIds.map((id, index) => ({
+        id: index + 1,
+        jsonrpc: "2.0",
+        method: "runGetMethod",
+        params: {
+          address: CONTRACT,
+          method: "get_event",
+          stack: [["num", String(id)]],
+        }
+      }));
+
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: 1,
-          jsonrpc: "2.0",
-          method: "runGetMethod",
-          params: {
-            address: CONTRACT,
-            method: "get_event",
-            stack: [["num", String(eventId)]],
-          },
-        }),
+        body: JSON.stringify(rpcPayload),
       });
 
-      const json = await res.json();
-      if (json.error) throw new Error(json.error.message || "Toncenter error");
+      const jsonResponses = await res.json();
 
-      const stack = json?.result?.stack;
-
-      if (isNullOptionalEvent(stack)) {
-        return { yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false };
+      if (!Array.isArray(jsonResponses)) {
+        if (jsonResponses.error) throw new Error(jsonResponses.error.message || "Toncenter error");
+        throw new Error("Неожиданный ответ от Toncenter");
       }
 
-      const parsed = extractEventDataFromStack(stack);
-      if (!parsed) {
-        const short = JSON.stringify(stack)?.slice(0, 260);
-        throw new Error("Неожиданный формат stack: " + short);
+      const results = [];
+
+      for (let i = 0; i < eventIds.length; i++) {
+        const eventId = eventIds[i];
+        const rpcRes = jsonResponses.find(r => r.id === i + 1);
+
+        if (!rpcRes || rpcRes.error) {
+           results.push({ eventId, error: rpcRes?.error?.message || "RPC Error" });
+           continue;
+        }
+
+        const stack = rpcRes.result?.stack;
+
+        if (isNullOptionalEvent(stack)) {
+          results.push({ eventId, yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false, error: null });
+          continue;
+        }
+
+        const parsed = extractEventDataFromStack(stack);
+        if (!parsed) {
+          results.push({ eventId, error: "Неожиданный формат stack" });
+          continue;
+        }
+
+        const yes = Number(parsed.yesNano) / 1e9;
+        const no = Number(parsed.noNano) / 1e9;
+
+        results.push({
+          eventId,
+          yes,
+          no,
+          total: yes + no,
+          isResolved: parsed.isResolved,
+          winningOutcome: parsed.winningOutcome,
+          error: null
+        });
       }
 
-      const yes = Number(parsed.yesNano) / 1e9;
-      const no = Number(parsed.noNano) / 1e9;
+      return results;
+    }
 
-      return {
-        yes,
-        no,
-        total: yes + no,
-        isResolved: parsed.isResolved,
-        winningOutcome: parsed.winningOutcome,
-      };
+    // НОВАЯ ФУНКЦИЯ: Обработка результатов Batch-запроса
+    async function syncAllEvents(eventIds) {
+      if (!eventIds.length) return;
+      try {
+        const dataList = await fetchAllEventsFromToncenter(eventIds);
+
+        for (const data of dataList) {
+          const prev = state.get(data.eventId) || {};
+
+          if (data.error) {
+            state.set(data.eventId, { ...prev, lastSyncAt: Date.now(), error: data.error });
+            const meta = document.getElementById(`meta-${data.eventId}`);
+            if (meta) meta.textContent = `Ошибка: ${data.error.slice(0, 40)}`;
+          } else {
+            state.set(data.eventId, { ...data, lastSyncAt: Date.now(), error: null });
+            renderFromState(data.eventId);
+          }
+        }
+      } catch (e) {
+        console.error("Batch sync failed:", e);
+        for (const id of eventIds) {
+          const prev = state.get(id) || {};
+          state.set(id, { ...prev, lastSyncAt: Date.now(), error: String(e.message) });
+          const meta = document.getElementById(`meta-${id}`);
+          if (meta) meta.textContent = `Ошибка сети`;
+        }
+      }
     }
 
     function buildFilters(container) {
@@ -404,7 +469,11 @@
       input.step = "0.01";
       input.placeholder = "Сумма TON";
       input.id = `am-${event.id}`;
-      input.addEventListener("input", () => renderEstimate(event.id));
+      
+      // ИСПОЛЬЗУЕМ DEBOUNCE: расчет происходит через 300мс после ввода
+      const debouncedRender = debounce(() => renderEstimate(event.id), 300);
+      input.addEventListener("input", debouncedRender);
+      
       card.appendChild(input);
 
       const hint = document.createElement("div");
@@ -528,21 +597,6 @@
         `Победа <b>НЕТ</b>: ~${winIfNo.toFixed(2)} T <span class="profit">(+${(winIfNo - amount).toFixed(2)})</span>`;
     }
 
-    async function syncEvent(eventId) {
-      try {
-        const data = await fetchEventFromToncenter(eventId);
-        state.set(eventId, { ...data, lastSyncAt: Date.now(), error: null });
-        renderFromState(eventId);
-      } catch (e) {
-        const msg = String(e?.message || e);
-        const prev = state.get(eventId) || {};
-        state.set(eventId, { ...prev, lastSyncAt: Date.now(), error: msg });
-
-        const meta = document.getElementById(`meta-${eventId}`);
-        if (meta) meta.textContent = `Ошибка: ${msg.slice(0, 80)}`;
-      }
-    }
-
     function setSending(eventId, isSending, message) {
       const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
       const status = document.getElementById(`status-${eventId}`);
@@ -609,9 +663,10 @@
         root.appendChild(empty);
       }
 
-      ids.forEach(id => syncEvent(id));
+      // ИСПОЛЬЗУЕМ BATCHING: Запрашиваем все ID одним разом
+      syncAllEvents(ids);
       clearTimer();
-      refreshTimer = setInterval(() => ids.forEach(id => syncEvent(id)), REFRESH_MS);
+      refreshTimer = setInterval(() => syncAllEvents(ids), REFRESH_MS);
     }
 
     (function main() {
@@ -641,7 +696,6 @@
 
       renderApp(app);
 
-      // Раз в час предлагаем обновить список (через бота)
       maybeShowUpdateHintOncePerHour();
     })();
   </script>
