@@ -289,7 +289,7 @@
       );
     }
 
-    // НОВАЯ ФУНКЦИЯ: Batch запрос всех событий одним вызовом
+   // ИСПРАВЛЕННАЯ ФУНКЦИЯ: Умная клиентская очередь запросов (Chunking)
     async function fetchAllEventsFromToncenter(eventIds) {
       if (!eventIds || eventIds.length === 0) return [];
 
@@ -298,67 +298,76 @@
       if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
 
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
-
-      const rpcPayload = eventIds.map((id, index) => ({
-        id: index + 1,
-        jsonrpc: "2.0",
-        method: "runGetMethod",
-        params: {
-          address: CONTRACT,
-          method: "get_event",
-          stack: [["num", String(id)]],
-        }
-      }));
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(rpcPayload),
-      });
-
-      const jsonResponses = await res.json();
-
-      if (!Array.isArray(jsonResponses)) {
-        if (jsonResponses.error) throw new Error(jsonResponses.error.message || "Toncenter error");
-        throw new Error("Неожиданный ответ от Toncenter");
-      }
-
       const results = [];
 
-      for (let i = 0; i < eventIds.length; i++) {
-        const eventId = eventIds[i];
-        const rpcRes = jsonResponses.find(r => r.id === i + 1);
+      // Разбиваем запросы на группы по 3 штуки
+      const chunkSize = 3;
+      
+      for (let i = 0; i < eventIds.length; i += chunkSize) {
+        const chunk = eventIds.slice(i, i + chunkSize);
+        
+        // Запускаем 3 запроса параллельно
+        const promises = chunk.map(async (eventId) => {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: eventId,
+                jsonrpc: "2.0",
+                method: "runGetMethod",
+                params: {
+                  address: CONTRACT,
+                  method: "get_event",
+                  stack: [["num", String(eventId)]],
+                }
+              }),
+            });
 
-        if (!rpcRes || rpcRes.error) {
-           results.push({ eventId, error: rpcRes?.error?.message || "RPC Error" });
-           continue;
-        }
+            if (!res.ok) {
+               if (res.status === 429) throw new Error("Лимит API");
+               throw new Error(`HTTP ${res.status}`);
+            }
 
-        const stack = rpcRes.result?.stack;
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message || "Toncenter error");
 
-        if (isNullOptionalEvent(stack)) {
-          results.push({ eventId, yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false, error: null });
-          continue;
-        }
+            const stack = json?.result?.stack;
 
-        const parsed = extractEventDataFromStack(stack);
-        if (!parsed) {
-          results.push({ eventId, error: "Неожиданный формат stack" });
-          continue;
-        }
+            if (isNullOptionalEvent(stack)) {
+              return { eventId, yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false, error: null };
+            }
 
-        const yes = Number(parsed.yesNano) / 1e9;
-        const no = Number(parsed.noNano) / 1e9;
+            const parsed = extractEventDataFromStack(stack);
+            if (!parsed) {
+              return { eventId, error: "Неожиданный формат stack" };
+            }
 
-        results.push({
-          eventId,
-          yes,
-          no,
-          total: yes + no,
-          isResolved: parsed.isResolved,
-          winningOutcome: parsed.winningOutcome,
-          error: null
+            const yes = Number(parsed.yesNano) / 1e9;
+            const no = Number(parsed.noNano) / 1e9;
+
+            return {
+              eventId,
+              yes,
+              no,
+              total: yes + no,
+              isResolved: parsed.isResolved,
+              winningOutcome: parsed.winningOutcome,
+              error: null
+            };
+          } catch (err) {
+            return { eventId, error: err.message || "Ошибка загрузки" };
+          }
         });
+
+        // Ждем завершения текущей группы из 3 запросов
+        const chunkResults = await Promise.all(promises);
+        results.push(...chunkResults);
+
+        // Делаем паузу в 300мс перед следующей группой, чтобы не злить Toncenter
+        if (i + chunkSize < eventIds.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
       }
 
       return results;
@@ -701,3 +710,4 @@
   </script>
 </body>
 </html>
+
