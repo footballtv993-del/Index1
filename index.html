@@ -4,65 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Hype Oracle</title>
+  
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tonweb@0.0.66/dist/tonweb.js"></script>
+
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
 
-    .filters {
+    /* Новая шапка для кнопки TonConnect */
+    .header {
       display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 6px 2px 12px 2px;
-      margin-bottom: 6px;
-      scrollbar-width: none;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 16px;
+      padding: 0 4px;
     }
+    .logo { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;}
+
+    .filters { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 12px 2px; margin-bottom: 6px; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
-    .chip {
-      flex: 0 0 auto;
-      padding: 10px 12px;
-      border-radius: 999px;
-      border: 1px solid #e5e7eb;
-      background: #fff;
-      color: #111827;
-      font-weight: 800;
-      font-size: 13px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .chip.active {
-      background: #111827;
-      color: #fff;
-      border-color: #111827;
-    }
+    .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; user-select: none; }
+    .chip.active { background: #111827; color: #fff; border-color: #111827; }
 
-    .top-note{
-      display:none;
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 10px 12px;
-      margin: 0 0 12px 0;
-      color:#374151;
-      font-size: 13px;
-      font-weight: 650;
-      line-height: 1.35;
-    }
-
+    .top-note{ display:none; background:#fff; border:1px solid #e5e7eb; border-radius: 16px; padding: 10px 12px; margin: 0 0 12px 0; color:#374151; font-size: 13px; font-weight: 650; line-height: 1.35; }
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
     h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
-    .event-img {
-      width: 100%;
-      height: 160px;
-      border-radius: 18px;
-      margin: 8px 0 14px 0;
-      display: block;
-      object-fit: cover;
-      background: #f3f4f6;
-    }
-
+    .event-img { width: 100%; height: 160px; border-radius: 18px; margin: 8px 0 14px 0; display: block; object-fit: cover; background: #f3f4f6; }
     .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
     .poll-yes { background: #34c759; transition: width 0.6s; }
     .poll-no { background: #ff3b30; transition: width 0.6s; }
@@ -87,15 +59,31 @@
 </head>
 
 <body>
-  <div id="app"><div class="loading">Загрузка...</div></div>
+  <div id="app">
+    <div class="header">
+      <div class="logo">🏆 HypeOracle</div>
+      <div id="ton-connect"></div>
+    </div>
+    <div id="content"><div class="loading">Загрузка...</div></div>
+  </div>
 
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) tg.ready();
+    if (tg) {
+      tg.ready();
+      tg.expand(); // Открываем WebApp на всю высоту
+    }
+
+    // Инициализация TonConnect
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: 'https://footballtv993-del.github.io/Index1/tonconnect-manifest.json',
+      buttonRootId: 'ton-connect'
+    });
 
     const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG";
     const REFRESH_MS = 15000;
     const MIN_BET = 0.10;
+    const BET_NETWORK_FEE = 0.05;
 
     const CATEGORY_LABELS = {
       sport: "Спорт",
@@ -140,19 +128,12 @@
     }
 
     function setAppError(msg) {
-      const app = document.getElementById("app");
-      app.innerHTML = "";
+      const content = document.getElementById("content");
+      content.innerHTML = "";
       const div = document.createElement("div");
       div.className = "error";
       div.textContent = msg;
-      app.appendChild(div);
-    }
-
-    function showTopNote(text) {
-      const note = document.getElementById("top-note");
-      if (!note) return;
-      note.textContent = text;
-      note.style.display = "block";
+      content.appendChild(div);
     }
 
     function hexToBigInt(x) {
@@ -240,7 +221,6 @@
 
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
       const results = [];
-
       const chunkSize = 3;
       
       for (let i = 0; i < eventIds.length; i += chunkSize) {
@@ -477,7 +457,7 @@
       card.querySelectorAll("button").forEach(b => b.disabled = true);
 
       const est = document.getElementById(`est-${eventId}`);
-      if (est) est.innerHTML = `Событие завершено. Ожидай сообщение от бота с кнопкой выигрыша.`;
+      if (est) est.innerHTML = `Событие завершено. Выигрыш скоро будет распределен.`;
     }
 
     function renderFromState(eventId) {
@@ -544,32 +524,73 @@
     function setSending(eventId, isSending, message) {
       const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
       const status = document.getElementById(`status-${eventId}`);
-      if (status) status.textContent = message || "";
+      if (status) {
+        status.textContent = message || "";
+        status.className = isSending ? "error" : "success"; // Подсветка текста
+      }
       if (card) card.querySelectorAll("button").forEach(b => b.disabled = isSending);
     }
 
-    function doBet(eventId, outcome) {
+    // НОВАЯ ЛОГИКА ОТПРАВКИ ЧЕРЕЗ TONCONNECT
+    async function doBet(eventId, outcome) {
       const info = state.get(eventId);
       if (info?.isResolved) return;
 
       const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
       if (amount === null || amount < MIN_BET) {
-        setSending(eventId, false, `Введите сумму (мин. ${MIN_BET.toFixed(2)} TON)`);
+        setSending(eventId, false, `❌ Введите сумму (мин. ${MIN_BET.toFixed(2)} TON)`);
         return;
       }
 
-      if (!tg) {
-        setSending(eventId, false, "Открой через Telegram");
+      // Проверяем, подключен ли кошелек
+      if (!tonConnectUI.connected) {
+        setSending(eventId, false, "Подключите кошелек в шапке ⬆️");
+        tonConnectUI.connectWallet();
         return;
       }
 
-      setSending(eventId, true, "Отправляем в бота...");
+      setSending(eventId, true, "Подтвердите транзакцию в кошельке...");
 
       try {
-        tg.sendData(JSON.stringify({ eventId, outcome, amount: amount.toFixed(2) }));
-        setSending(eventId, false, "✅ Отправлено. Заверши оплату в чате с ботом.");
-      } catch {
-        setSending(eventId, false, "Ошибка отправки в бота");
+        // Формируем payload с помощью встроенного TonWeb
+        const cell = new TonWeb.boc.Cell();
+        cell.bits.writeUint(0x336af5ef, 32); // OPCODE_BET
+        cell.bits.writeUint(eventId, 64);
+        cell.bits.writeUint(outcome ? 1 : 0, 1);
+        
+        const bocBytes = await cell.toBoc();
+        const payloadBase64 = TonWeb.utils.bytesToBase64(bocBytes);
+
+        // Считаем сумму с учетом комиссии + переводим в нано-тоны
+        const amountNano = Math.floor((amount + BET_NETWORK_FEE) * 1e9).toString();
+
+        // Формируем структуру транзакции для TonConnect
+        const transaction = {
+          validUntil: Math.floor(Date.now() / 1000) + 360, // 6 минут на подтверждение
+          messages: [
+            {
+              address: CONTRACT,
+              amount: amountNano,
+              payload: payloadBase64
+            }
+          ]
+        };
+
+        // Отправляем транзакцию на подтверждение в кошелек пользователя
+        await tonConnectUI.sendTransaction(transaction);
+        
+        setSending(eventId, false, "✅ Ставка успешно отправлена в блокчейн!");
+        
+        // Если хочешь, чтобы WebApp сам закрывался после ставки, раскомментируй строку ниже:
+        // setTimeout(() => tg.close(), 3000);
+
+      } catch (e) {
+        console.error("Ошибка транзакции:", e);
+        if (e.message.includes("User rejects")) {
+          setSending(eventId, false, "❌ Вы отменили транзакцию");
+        } else {
+          setSending(eventId, false, "❌ Ошибка отправки");
+        }
       }
     }
 
@@ -581,11 +602,6 @@
     }
 
     function renderApp(root) {
-      const note = document.createElement("div");
-      note.id = "top-note";
-      note.className = "top-note";
-      root.appendChild(note);
-
       root.appendChild(buildFilters(root));
 
       const ids = [];
@@ -628,15 +644,15 @@
         return;
       }
 
-      const app = document.getElementById("app");
-      app.innerHTML = "";
+      const content = document.getElementById("content");
+      content.innerHTML = "";
 
       if (eventList.length === 0) {
-        app.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
+        content.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
         return;
       }
 
-      renderApp(app);
+      renderApp(content);
     })();
   </script>
 </body>
