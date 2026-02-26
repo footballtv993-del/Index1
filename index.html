@@ -14,23 +14,38 @@
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
 
-    /* Новая шапка для кнопки TonConnect */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 16px;
-      padding: 0 4px;
-    }
+    .header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 16px; padding: 0 4px; }
     .logo { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;}
+
+    /* === СТИЛИ ДЛЯ БАННЕРА ПОКУПКИ TON === */
+    .fiat-banner {
+      background: linear-gradient(135deg, #0088cc, #005580);
+      color: white;
+      border-radius: 20px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 136, 204, 0.25);
+      transition: transform 0.1s;
+    }
+    .fiat-banner:active { transform: scale(0.97); }
+    .fiat-banner-text { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    .fiat-banner-text span { font-size: 12px; font-weight: 400; opacity: 0.85; }
+    .fiat-banner-btn {
+      background: #fff; color: #0088cc; padding: 10px 14px; border-radius: 999px;
+      font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px;
+    }
+    /* ===================================== */
 
     .filters { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 12px 2px; margin-bottom: 6px; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
     .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; user-select: none; }
     .chip.active { background: #111827; color: #fff; border-color: #111827; }
 
-    .top-note{ display:none; background:#fff; border:1px solid #e5e7eb; border-radius: 16px; padding: 10px 12px; margin: 0 0 12px 0; color:#374151; font-size: 13px; font-weight: 650; line-height: 1.35; }
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
     h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
@@ -64,6 +79,15 @@
       <div class="logo">🏆 HypeOracle</div>
       <div id="ton-connect"></div>
     </div>
+    
+    <div class="fiat-banner" onclick="openFiatOnRamp()">
+      <div class="fiat-banner-text">
+        Нет TON для ставки?<br>
+        <span>Пополни с банк. карты легально</span>
+      </div>
+      <div class="fiat-banner-btn">Купить 💳</div>
+    </div>
+
     <div id="content"><div class="loading">Загрузка...</div></div>
   </div>
 
@@ -71,10 +95,9 @@
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
-      tg.expand(); // Открываем WebApp на всю высоту
+      tg.expand(); 
     }
 
-    // Инициализация TonConnect
     const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
       manifestUrl: 'https://footballtv993-del.github.io/Index1/tonconnect-manifest.json',
       buttonRootId: 'ton-connect'
@@ -96,6 +119,16 @@
     let activeCategory = "all";
     let refreshTimer = null;
     const state = new Map();
+
+    // Открытие официального @wallet для покупки TON
+    function openFiatOnRamp() {
+      const walletUrl = "https://t.me/wallet";
+      if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(walletUrl);
+      } else {
+        window.open(walletUrl, '_blank');
+      }
+    }
 
     function safeBase64ToJson(b64) {
       try {
@@ -526,12 +559,11 @@
       const status = document.getElementById(`status-${eventId}`);
       if (status) {
         status.textContent = message || "";
-        status.className = isSending ? "error" : "success"; // Подсветка текста
+        status.className = isSending ? "error" : "success";
       }
       if (card) card.querySelectorAll("button").forEach(b => b.disabled = isSending);
     }
 
-    // НОВАЯ ЛОГИКА ОТПРАВКИ ЧЕРЕЗ TONCONNECT
     async function doBet(eventId, outcome) {
       const info = state.get(eventId);
       if (info?.isResolved) return;
@@ -542,7 +574,6 @@
         return;
       }
 
-      // Проверяем, подключен ли кошелек
       if (!tonConnectUI.connected) {
         setSending(eventId, false, "Подключите кошелек в шапке ⬆️");
         tonConnectUI.connectWallet();
@@ -552,21 +583,18 @@
       setSending(eventId, true, "Подтвердите транзакцию в кошельке...");
 
       try {
-        // Формируем payload с помощью встроенного TonWeb
         const cell = new TonWeb.boc.Cell();
-        cell.bits.writeUint(0x336af5ef, 32); // OPCODE_BET
+        cell.bits.writeUint(0x336af5ef, 32); 
         cell.bits.writeUint(eventId, 64);
         cell.bits.writeUint(outcome ? 1 : 0, 1);
         
         const bocBytes = await cell.toBoc();
         const payloadBase64 = TonWeb.utils.bytesToBase64(bocBytes);
 
-        // Считаем сумму с учетом комиссии + переводим в нано-тоны
         const amountNano = Math.floor((amount + BET_NETWORK_FEE) * 1e9).toString();
 
-        // Формируем структуру транзакции для TonConnect
         const transaction = {
-          validUntil: Math.floor(Date.now() / 1000) + 360, // 6 минут на подтверждение
+          validUntil: Math.floor(Date.now() / 1000) + 360, 
           messages: [
             {
               address: CONTRACT,
@@ -576,13 +604,9 @@
           ]
         };
 
-        // Отправляем транзакцию на подтверждение в кошелек пользователя
         await tonConnectUI.sendTransaction(transaction);
         
         setSending(eventId, false, "✅ Ставка успешно отправлена в блокчейн!");
-        
-        // Если хочешь, чтобы WebApp сам закрывался после ставки, раскомментируй строку ниже:
-        // setTimeout(() => tg.close(), 3000);
 
       } catch (e) {
         console.error("Ошибка транзакции:", e);
