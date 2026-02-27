@@ -110,6 +110,7 @@
       politics: "Политика",
       finance: "Финансы",
       showbiz: "Шоу-Бизнес",
+      private: "Приватные"
     };
 
     let eventList = [];
@@ -347,12 +348,16 @@
       const bar = document.createElement("div");
       bar.className = "filters";
 
-      const chips = [
-        { key: "all", label: "Все" },
-        ...Object.keys(CATEGORY_LABELS).map(k => ({ key: k, label: CATEGORY_LABELS[k] }))
-      ];
+      const categoriesInList = new Set(eventList.map(e => String(e.category || "").toLowerCase()));
+      const availableChips = [{ key: "all", label: "Все" }];
+      
+      for (const [key, label] of Object.entries(CATEGORY_LABELS)) {
+          if (categoriesInList.has(key)) {
+              availableChips.push({ key, label });
+          }
+      }
 
-      chips.forEach(ch => {
+      availableChips.forEach(ch => {
         const el = document.createElement("div");
         el.className = "chip" + (ch.key === activeCategory ? " active" : "");
         el.textContent = ch.label;
@@ -374,6 +379,13 @@
       const h2 = document.createElement("h2");
       h2.textContent = event.title || `Событие #${event.id}`;
       card.appendChild(h2);
+
+      if (event.is_private === 1) {
+        const privateBadge = document.createElement("div");
+        privateBadge.style.cssText = "background: #111827; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 12px; text-transform: uppercase;";
+        privateBadge.innerHTML = "🔒 Приватный спор";
+        card.appendChild(privateBadge);
+      }
 
       if (event.image_url && /^https:\/\//i.test(String(event.image_url))) {
         const img = document.createElement("img");
@@ -562,7 +574,7 @@
         return;
       }
 
-      const fee = 0.9;
+      const fee = 0.85; // Изменено на 15% комиссии, как мы обсуждали
       const denomYes = (yesPool + amount);
       const denomNo = (noPool + amount);
       if (denomYes <= 0 || denomNo <= 0) { est.textContent = "Недостаточно данных для расчёта"; return; }
@@ -689,7 +701,6 @@
 
       renderApp(content);
 
-      // Логика скроллинга к карточке при переходе по Deep Link
       const targetEventId = params.get("ev");
       if (targetEventId) {
         setTimeout(() => {
