@@ -17,7 +17,7 @@
     .header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 16px; padding: 0 4px; }
     .logo { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;}
 
-    /* === СТИЛИ ДЛЯ БАННЕРА ПОКУПКИ TON === */
+    /* Баннер покупки TON */
     .fiat-banner {
       background: linear-gradient(135deg, #0088cc, #005580);
       color: white;
@@ -39,7 +39,6 @@
       background: #fff; color: #0088cc; padding: 10px 14px; border-radius: 999px;
       font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px;
     }
-    /* ===================================== */
 
     .filters { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 12px 2px; margin-bottom: 6px; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
@@ -120,7 +119,6 @@
     let refreshTimer = null;
     const state = new Map();
 
-    // Открытие официального @wallet для покупки TON
     function openFiatOnRamp() {
       const walletUrl = "https://t.me/wallet";
       if (tg && tg.openTelegramLink) {
@@ -420,6 +418,9 @@
       stats.appendChild(txtN);
       card.appendChild(stats);
 
+      // ПРОВЕРКА ДЕДЛАЙНА
+      const isClosed = event.closes_at && Date.now() > event.closes_at;
+
       const input = document.createElement("input");
       input.type = "number";
       input.inputMode = "decimal";
@@ -430,18 +431,32 @@
       
       const debouncedRender = debounce(() => renderEstimate(event.id), 300);
       input.addEventListener("input", debouncedRender);
+
+      if (isClosed) {
+        input.disabled = true;
+        input.style.opacity = "0.5";
+      }
       
       card.appendChild(input);
 
       const hint = document.createElement("div");
       hint.className = "hint";
-      hint.textContent = `Минимум ${MIN_BET.toFixed(2)} TON.`;
+      if (isClosed) {
+        hint.textContent = `⏳ Прием ставок закрыт`;
+        hint.style.color = "#d93025";
+        hint.style.fontWeight = "bold";
+      } else {
+        const closeText = event.closes_at 
+            ? ` | До: ${new Date(event.closes_at).toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})}` 
+            : "";
+        hint.textContent = `Мин. ${MIN_BET.toFixed(2)} TON${closeText}`;
+      }
       card.appendChild(hint);
 
       const est = document.createElement("div");
       est.className = "win-estimate";
       est.id = `est-${event.id}`;
-      est.textContent = "Укажите сумму для прогноза";
+      est.textContent = isClosed ? "Ожидаем завершения события" : "Укажите сумму для прогноза";
       card.appendChild(est);
 
       const btnGrid = document.createElement("div");
@@ -450,11 +465,13 @@
       const btnYes = document.createElement("button");
       btnYes.className = "btn-yes";
       btnYes.textContent = "ДА";
+      btnYes.disabled = isClosed;
       btnYes.addEventListener("click", () => doBet(event.id, true));
 
       const btnNo = document.createElement("button");
       btnNo.className = "btn-no";
       btnNo.textContent = "НЕТ";
+      btnNo.disabled = isClosed;
       btnNo.addEventListener("click", () => doBet(event.id, false));
 
       btnGrid.appendChild(btnYes);
@@ -488,6 +505,11 @@
       }
 
       card.querySelectorAll("button").forEach(b => b.disabled = true);
+      const input = document.getElementById(`am-${eventId}`);
+      if (input) {
+        input.disabled = true;
+        input.style.opacity = "0.5";
+      }
 
       const est = document.getElementById(`est-${eventId}`);
       if (est) est.innerHTML = `Событие завершено. Выигрыш скоро будет распределен.`;
@@ -517,7 +539,7 @@
       if (meta) meta.textContent = `Обновление: ${new Date(info.lastSyncAt).toLocaleTimeString()}`;
 
       if (info.isResolved) setCardResolved(eventId, info.winningOutcome);
-      renderEstimate(eventId);
+      else renderEstimate(eventId);
     }
 
     function renderEstimate(eventId) {
@@ -528,6 +550,13 @@
       if (!est) return;
       if (!info) { est.textContent = "Нет данных с блокчейна"; return; }
       if (info.isResolved) return;
+
+      // Если событие закрыто, не считаем
+      const isClosed = document.querySelector(`.card[data-event-id="${eventId}"] button`)?.disabled;
+      if (isClosed) {
+          est.textContent = "Ожидаем завершения события";
+          return;
+      }
 
       const amount = parseAmount(input?.value);
       if (amount === null) { est.textContent = "Укажите сумму для прогноза"; return; }
@@ -610,7 +639,7 @@
 
       } catch (e) {
         console.error("Ошибка транзакции:", e);
-        if (e.message.includes("User rejects")) {
+        if (e.message && e.message.includes("User rejects")) {
           setSending(eventId, false, "❌ Вы отменили транзакцию");
         } else {
           setSending(eventId, false, "❌ Ошибка отправки");
