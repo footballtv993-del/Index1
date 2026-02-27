@@ -4,141 +4,751 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Hype Oracle</title>
+  
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tonweb@0.0.66/dist/tonweb.js"></script>
+
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
+
     .header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 16px; padding: 0 4px; }
     .logo { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;}
-    .fiat-banner { background: linear-gradient(135deg, #0088cc, #005580); color: white; border-radius: 20px; padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; width: 100%; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 136, 204, 0.25); transition: transform 0.1s; }
+
+    .fiat-banner {
+      background: linear-gradient(135deg, #0088cc, #005580);
+      color: white; border-radius: 20px; padding: 16px 20px; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between; width: 100%; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 136, 204, 0.25); transition: transform 0.1s;
+    }
+    .fiat-banner:active { transform: scale(0.97); }
+    .fiat-banner-text { font-size: 14px; font-weight: 600; line-height: 1.3; }
+    .fiat-banner-text span { font-size: 12px; font-weight: 400; opacity: 0.85; }
     .fiat-banner-btn { background: #fff; color: #0088cc; padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px; }
+
     .filters { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 12px 2px; margin-bottom: 6px; scrollbar-width: none; }
-    .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; }
+    .filters::-webkit-scrollbar { display: none; }
+    .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; user-select: none; }
     .chip.active { background: #111827; color: #fff; border-color: #111827; }
+
     .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
+
     .event-img { width: 100%; height: 160px; border-radius: 18px; margin: 8px 0 14px 0; display: block; object-fit: cover; background: #f3f4f6; }
     .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
     .poll-yes { background: #34c759; transition: width 0.6s; }
     .poll-no { background: #ff3b30; transition: width 0.6s; }
-    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; }
-    input { width: 100%; height: 56px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 22px; font-weight: 900; text-align: center; outline: none; }
-    .hint { font-size: 12px; color: #888; margin: 8px 0; text-align: center; }
-    .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; text-align: center; min-height: 40px; }
-    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; }
+    input { width: 100%; height: 56px; border: 2px solid #e0e0e0; border-radius: 16px; font-size: 22px; font-weight: 900; text-align: center; outline: none; color: #222; }
+    input:focus { border-color: #0088cc; }
+    .hint { font-size: 12px; color: #888; margin-top: -4px; margin-bottom: 12px; text-align: center; }
+    .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; min-height: 32px; line-height: 1.55; text-align: center; }
+    .win-estimate b { color: #222; }
+    .profit { font-size: 11px; }
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
     button { padding: 16px; border-radius: 16px; border: none; color: #fff; font-size: 16px; font-weight: 850; cursor: pointer; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
     .btn-no { background: #ff3b30; box-shadow: 0 4px 0 #d93025; }
-    .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; font-size: 11px; }
-    .share-btn { background: #f3f4f6; color: #374151; padding: 6px 12px; border-radius: 999px; font-weight: 700; border: 1px solid #e5e7eb; cursor: pointer; }
-    .loading { color: #888; margin-top: 50px; }
+    .meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; color: #777; font-size: 12px; }
+    
+    .share-btn {
+      background: #f3f4f6; border: 1px solid #e5e7eb; color: #374151;
+      padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+    }
+    .share-btn:active { background: #e5e7eb; }
+
+    .loading { color: #888; margin-top: 50px; text-align: center; }
+    .error { color: #b42318; background:#fff; border-radius: 18px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
+    .success { color: #067647; }
   </style>
 </head>
+
 <body>
   <div id="app">
-    <div class="header"><div class="logo">🏆 HypeOracle</div><div id="ton-connect"></div></div>
-    <div class="fiat-banner" onclick="openFiatOnRamp()"><div class="fiat-banner-text">Нет TON для ставки?<br><span>Пополни с карты легально</span></div><div class="fiat-banner-btn">Купить 💳</div></div>
+    <div class="header">
+      <div class="logo">🏆 HypeOracle</div>
+      <div id="ton-connect"></div>
+    </div>
+    
+    <div class="fiat-banner" onclick="openFiatOnRamp()">
+      <div class="fiat-banner-text">
+        Нет TON для ставки?<br>
+        <span>Пополни с банк. карты легально</span>
+      </div>
+      <div class="fiat-banner-btn">Купить 💳</div>
+    </div>
+
     <div id="content"><div class="loading">Загрузка...</div></div>
   </div>
+
   <script>
     const tg = window.Telegram?.WebApp;
-    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://footballtv993-del.github.io/Index1/tonconnect-manifest.json', buttonRootId: 'ton-connect' });
+    if (tg) {
+      tg.ready();
+      tg.expand(); 
+    }
+
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: 'https://footballtv993-del.github.io/Index1/tonconnect-manifest.json',
+      buttonRootId: 'ton-connect'
+    });
+
     const CONTRACT = "EQB7MjT_ZRAG9TIrb7dzJJ5ETGD-i1z6_aDozrS0BQSqqGkh";
-    const BOT_USERNAME = "hypeoracle_bot";
+    const REFRESH_MS = 15000;
     const MIN_BET = 0.10;
     const BET_NETWORK_FEE = 0.05;
-    let eventList = [], activeCategory = "all", state = new Map();
 
-    function openFiatOnRamp() { tg.openTelegramLink("https://t.me/wallet"); }
-    function shareEvent(id, title) { tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent('https://t.me/'+BOT_USERNAME+'?start=ev_'+id)}&text=${encodeURIComponent('🔥 Спорим? '+title)}`); }
+    // ВПИШИ СЮДА ЮЗЕРНЕЙМ СВОЕГО БОТА (Без @)
+    const BOT_USERNAME = "hypeoracle_bot";
 
-    function isNullOptionalEvent(stack) {
-      if (!Array.isArray(stack) || stack.length === 0 || stack[0] === null) return true;
-      const s0 = stack[0];
-      if (s0 === "null" || s0.type === "null" || (Array.isArray(s0) && s0[0] === "null")) return true;
-      return false;
-    }
+    const CATEGORY_LABELS = {
+      sport: "Спорт",
+      politics: "Политика",
+      finance: "Финансы",
+      showbiz: "Шоу-Бизнес",
+      private: "Приватные"
+    };
 
-    function asBigIntFromElement(el) {
-      const v = el?.value ?? el?.num ?? el?.[1];
-      try { return BigInt(v); } catch(e) { return null; }
-    }
+    let eventList = [];
+    let activeCategory = "all";
+    let refreshTimer = null;
+    const state = new Map();
 
-    async function fetchAllEvents(ids) {
-      const API_KEY = new URLSearchParams(window.location.search).get("api");
-      const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${API_KEY}`;
-      for (const id of ids) {
-        try {
-          const res = await fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({id:id, jsonrpc:"2.0", method:"runGetMethod", params:{address:CONTRACT, method:"get_event", stack:[["num", String(id)]]}})});
-          const json = await res.json();
-          if (isNullOptionalEvent(json.result?.stack)) {
-            state.set(id, {yes:0, no:0, total:0, isResolved:false, lastSyncAt:Date.now()});
-          } else {
-            const st = json.result.stack[0][1].elements;
-            state.set(id, {yes:Number(asBigIntFromElement(st[0]))/1e9, no:Number(asBigIntFromElement(st[1]))/1e9, total:(Number(asBigIntFromElement(st[0]))+Number(asBigIntFromElement(st[1])))/1e9, isResolved:st[2].value==="true", winningOutcome:st[3].value==="true", lastSyncAt:Date.now()});
-          }
-          renderFromState(id);
-        } catch(e) { console.error(e); }
+    function shareEvent(eventId, title) {
+      const deepLink = `https://t.me/${BOT_USERNAME}?start=ev_${eventId}`;
+      const text = `🔥 Заходи и делай ставку: ${title}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(deepLink)}&text=${encodeURIComponent(text)}`;
+      
+      if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(shareUrl);
+      } else {
+        window.open(shareUrl, '_blank');
       }
     }
 
-    function renderEstimate(id) {
-      const info = state.get(id);
-      const ev = eventList.find(e => e.id == id);
-      const val = parseFloat(document.getElementById(`am-${id}`).value) || 0;
-      const est = document.getElementById(`est-${id}`);
-      if (val < MIN_BET) { est.textContent = "Минимум 0.10 TON"; return; }
-      const fee = ev.is_private ? 0.98 : 0.90; // 2% для приватных, 10% для публичных
-      const winYes = val + (val / (info.yes + val)) * (info.no * fee);
-      const winNo = val + (val / (info.no + val)) * (info.yes * fee);
-      est.innerHTML = `Победа ДА: ~${winYes.toFixed(2)} T<br>Победа НЕТ: ~${winNo.toFixed(2)} T`;
+    function openFiatOnRamp() {
+      const walletUrl = "https://t.me/wallet";
+      if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(walletUrl);
+      } else {
+        window.open(walletUrl, '_blank');
+      }
     }
 
-    function renderFromState(id) {
-      const info = state.get(id);
-      const yP = info.total > 0 ? Math.round((info.yes/info.total)*100) : 50;
-      document.getElementById(`bar-y-${id}`).style.width = yP+'%';
-      document.getElementById(`bar-n-${id}`).style.width = (100-yP)+'%';
-      document.getElementById(`txt-y-${id}`).textContent = `ДА: ${yP}% (${info.yes.toFixed(2)}T)`;
-      document.getElementById(`txt-n-${id}`).textContent = `НЕТ: ${100-yP}% (${info.no.toFixed(2)}T)`;
+    function safeBase64ToJson(b64) {
+      try {
+        const jsonString = decodeURIComponent(escape(window.atob((b64 || "").replace(/-/g, "+").replace(/_/g, "/"))));
+        return JSON.parse(jsonString);
+      } catch (e) {
+        throw new Error("Ошибка декодирования данных");
+      }
     }
 
-    async function doBet(id, outcome) {
-      if (!tonConnectUI.connected) { tonConnectUI.connectWallet(); return; }
-      const amt = parseFloat(document.getElementById(`am-${id}`).value);
-      const cell = new TonWeb.boc.Cell();
-      cell.bits.writeUint(0x336af5ef, 32); cell.bits.writeUint(id, 64); cell.bits.writeUint(outcome?1:0, 1);
-      const boc = await cell.toBoc();
-      await tonConnectUI.sendTransaction({validUntil: Math.floor(Date.now()/1000)+300, messages: [{address: CONTRACT, amount: Math.floor((amt+BET_NETWORK_FEE)*1e9).toString(), payload: TonWeb.utils.bytesToBase64(boc)}]});
+    function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
+
+    function parseAmount(inputValue) {
+      const n = Number.parseFloat(String(inputValue ?? "").replace(",", "."));
+      if (!Number.isFinite(n)) return null;
+      return Math.round(n * 100) / 100;
     }
 
-    function renderApp() {
-      const root = document.getElementById("content"); root.innerHTML = "";
-      eventList.forEach(ev => {
-        if (activeCategory !== "all" && ev.category !== activeCategory) return;
-        const card = document.createElement("div"); card.className = "card";
-        card.innerHTML = `<h2>${ev.is_private?'🔒 ':''}${ev.title}</h2>${ev.image_url?`<img src="${ev.image_url}" class="event-img">`:''}
-          <div class="poll-container"><div id="bar-y-${ev.id}" class="poll-yes"></div><div id="bar-n-${ev.id}" class="poll-no"></div></div>
-          <div class="stats-text"><span id="txt-y-${ev.id}">ДА: --</span><span id="txt-n-${ev.id}">НЕТ: --</span></div>
-          <input type="number" id="am-${ev.id}" placeholder="Сумма TON" oninput="renderEstimate(${ev.id})">
-          <div class="hint">Минимум 0.10 TON</div><div id="est-${ev.id}" class="win-estimate"></div>
-          <div class="btn-grid"><button class="btn-yes" onclick="doBet(${ev.id}, true)">ДА</button><button class="btn-no" onclick="doBet(${ev.id}, false)">НЕТ</button></div>
-          <div class="meta"><span id="status-${ev.id}"></span><button class="share-btn" onclick="shareEvent(${ev.id}, '${ev.title}')">Поделиться ↗️</button></div>`;
-        root.appendChild(card);
+    function fmtTon(n) {
+      if (!Number.isFinite(n)) return "--";
+      return n.toFixed(2);
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    function setAppError(msg) {
+      const content = document.getElementById("content");
+      content.innerHTML = "";
+      const div = document.createElement("div");
+      div.className = "error";
+      div.textContent = msg;
+      content.appendChild(div);
+    }
+
+    function hexToBigInt(x) {
+      if (typeof x !== "string") return null;
+      if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
+      if (/^\d+$/.test(x)) return BigInt(x);
+      return null;
+    }
+
+    function asBigIntFromElement(el) {
+      const a = el?.number?.number ?? el?.number;
+      if (a !== undefined) { try { return BigInt(String(a)); } catch {} }
+      const b = el?.value ?? el?.num ?? el?.valueHex;
+      const bi = hexToBigInt(String(b ?? ""));
+      if (bi !== null) return bi;
+      return null;
+    }
+
+    function asBoolFromElement(el) {
+      const bi = asBigIntFromElement(el);
+      if (bi === null) return null;
+      return bi !== 0n;
+    }
+
+    function extractTupleElements(stackItem) {
+      if (Array.isArray(stackItem) && stackItem.length >= 2) {
+        const maybe = stackItem[1];
+        const elements = maybe?.elements;
+        if (Array.isArray(elements)) return elements;
+      }
+      if (stackItem && typeof stackItem === "object") {
+        const t = stackItem.type ?? stackItem["@type"];
+        if (t && String(t).toLowerCase().includes("tuple")) {
+          const v = stackItem.value ?? stackItem.elements ?? stackItem.tuple;
+          if (Array.isArray(v)) return v;
+          if (v?.elements && Array.isArray(v.elements)) return v.elements;
+        }
+      }
+      return null;
+    }
+
+    // === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЧТЕНИЯ ДАННЫХ ИЗ БЛОКЧЕЙНА ===
+    function extractEventDataFromStack(stack) {
+      if (!Array.isArray(stack)) return null;
+      let elements = extractTupleElements(stack[0]);
+      if (!elements) {
+        if (stack.length >= 4 && (stack[0]?.number || stack[0]?.type === "num")) {
+          elements = stack;
+        } else {
+          for (const it of stack) {
+            const el = extractTupleElements(it);
+            if (el) { elements = el; break; }
+          }
+        }
+      }
+      
+      // В новом смарт-контракте элементов стало 5 (добавился eventType), поэтому проверяем, что их хотя бы 4
+      if (!elements || elements.length < 4) return null;
+
+      const yesNano = asBigIntFromElement(elements[0]);
+      const noNano = asBigIntFromElement(elements[1]);
+      const isResolved = asBoolFromElement(elements[2]);
+      const winningOutcome = asBoolFromElement(elements[3]);
+
+      if (yesNano === null || noNano === null || isResolved === null || winningOutcome === null) return null;
+      return { yesNano, noNano, isResolved, winningOutcome };
+    }
+
+    // === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ПУСТЫХ СОБЫТИЙ (ГДЕ ЕЩЕ НЕТ СТАВОК) ===
+    function isNullOptionalEvent(stack) {
+      if (!Array.isArray(stack) || stack.length === 0) return true;
+      const s0 = stack[0];
+      if (!s0) return true;
+      // Учитываем все форматы пустого ответа
+      if (s0 === "null" || s0[0] === "null" || s0.type === "null") return true;
+      if (s0[0] === "tuple" && Array.isArray(s0[1]?.elements) && s0[1].elements.length === 0) return true;
+      if (s0[0] === "list" && Array.isArray(s0[1]?.elements) && s0[1].elements.length === 0) return true;
+      return false;
+    }
+
+    async function fetchAllEventsFromToncenter(eventIds) {
+      if (!eventIds || eventIds.length === 0) return [];
+      const params = new URLSearchParams(window.location.search);
+      const API_KEY = params.get("api");
+      if (!API_KEY) throw new Error("Нет ключа toncenter: отсутствует ?api=...");
+
+      const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
+      const results = [];
+      const chunkSize = 3;
+      
+      for (let i = 0; i < eventIds.length; i += chunkSize) {
+        const chunk = eventIds.slice(i, i + chunkSize);
+        const promises = chunk.map(async (eventId) => {
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: eventId,
+                jsonrpc: "2.0",
+                method: "runGetMethod",
+                params: {
+                  address: CONTRACT,
+                  method: "get_event",
+                  stack: [["num", String(eventId)]],
+                }
+              }),
+            });
+
+            if (!res.ok) {
+               if (res.status === 429) throw new Error("Лимит API");
+               throw new Error(`HTTP ${res.status}`);
+            }
+
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message || "Toncenter error");
+
+            const stack = json?.result?.stack;
+            if (isNullOptionalEvent(stack)) {
+              return { eventId, yes: 0, no: 0, total: 0, isResolved: false, winningOutcome: false, error: null };
+            }
+
+            const parsed = extractEventDataFromStack(stack);
+            if (!parsed) {
+              return { eventId, error: "Неожиданный формат stack" };
+            }
+
+            const yes = Number(parsed.yesNano) / 1e9;
+            const no = Number(parsed.noNano) / 1e9;
+
+            return {
+              eventId, yes, no, total: yes + no,
+              isResolved: parsed.isResolved, winningOutcome: parsed.winningOutcome, error: null
+            };
+          } catch (err) {
+            return { eventId, error: err.message || "Ошибка загрузки" };
+          }
+        });
+
+        const chunkResults = await Promise.all(promises);
+        results.push(...chunkResults);
+        if (i + chunkSize < eventIds.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      return results;
+    }
+
+    async function syncAllEvents(eventIds) {
+      if (!eventIds.length) return;
+      try {
+        const dataList = await fetchAllEventsFromToncenter(eventIds);
+        for (const data of dataList) {
+          const prev = state.get(data.eventId) || {};
+          if (data.error) {
+            state.set(data.eventId, { ...prev, lastSyncAt: Date.now(), error: data.error });
+            const status = document.getElementById(`status-${data.eventId}`);
+            if (status) status.textContent = `Ошибка: ${data.error.slice(0, 40)}`;
+          } else {
+            state.set(data.eventId, { ...data, lastSyncAt: Date.now(), error: null });
+            renderFromState(data.eventId);
+          }
+        }
+      } catch (e) {
+        for (const id of eventIds) {
+          const prev = state.get(id) || {};
+          state.set(id, { ...prev, lastSyncAt: Date.now(), error: String(e.message) });
+          const status = document.getElementById(`status-${id}`);
+          if (status) status.textContent = `Ошибка сети`;
+        }
+      }
+    }
+
+    function buildFilters(container) {
+      const bar = document.createElement("div");
+      bar.className = "filters";
+
+      const categoriesInList = new Set(eventList.map(e => String(e.category || "").toLowerCase()));
+      const availableChips = [{ key: "all", label: "Все" }];
+      
+      for (const [key, label] of Object.entries(CATEGORY_LABELS)) {
+          if (categoriesInList.has(key)) {
+              availableChips.push({ key, label });
+          }
+      }
+
+      availableChips.forEach(ch => {
+        const el = document.createElement("div");
+        el.className = "chip" + (ch.key === activeCategory ? " active" : "");
+        el.textContent = ch.label;
+        el.onclick = () => {
+          activeCategory = ch.key;
+          container.innerHTML = "";
+          renderApp(container);
+        };
+        bar.appendChild(el);
       });
-      fetchAllEvents(eventList.map(e => e.id));
+      return bar;
+    }
+
+    function buildCard(event) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.dataset.eventId = String(event.id);
+
+      const h2 = document.createElement("h2");
+      h2.textContent = event.title || `Событие #${event.id}`;
+      card.appendChild(h2);
+
+      if (event.is_private === 1) {
+        const privateBadge = document.createElement("div");
+        privateBadge.style.cssText = "background: #111827; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 12px; text-transform: uppercase;";
+        privateBadge.innerHTML = "🔒 Приватный спор";
+        card.appendChild(privateBadge);
+      }
+
+      if (event.image_url && /^https:\/\//i.test(String(event.image_url))) {
+        const img = document.createElement("img");
+        img.className = "event-img";
+        img.src = String(event.image_url);
+        img.alt = "";
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        card.appendChild(img);
+      }
+
+      const poll = document.createElement("div");
+      poll.className = "poll-container";
+      const barYes = document.createElement("div");
+      barYes.className = "poll-yes";
+      barYes.id = `bar-y-${event.id}`;
+      barYes.style.width = "50%";
+      const barNo = document.createElement("div");
+      barNo.className = "poll-no";
+      barNo.id = `bar-n-${event.id}`;
+      barNo.style.width = "50%";
+      poll.appendChild(barYes);
+      poll.appendChild(barNo);
+      card.appendChild(poll);
+
+      const stats = document.createElement("div");
+      stats.className = "stats-text";
+      const txtY = document.createElement("span");
+      txtY.id = `txt-y-${event.id}`;
+      txtY.textContent = "ДА: --";
+      const txtN = document.createElement("span");
+      txtN.id = `txt-n-${event.id}`;
+      txtN.textContent = "НЕТ: --";
+      stats.appendChild(txtY);
+      stats.appendChild(txtN);
+      card.appendChild(stats);
+
+      const isClosed = event.closes_at && Date.now() > event.closes_at;
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "decimal";
+      input.min = String(MIN_BET);
+      input.step = "0.01";
+      input.placeholder = "Сумма TON";
+      input.id = `am-${event.id}`;
+      
+      const debouncedRender = debounce(() => renderEstimate(event.id), 300);
+      input.addEventListener("input", debouncedRender);
+
+      if (isClosed) {
+        input.disabled = true;
+        input.style.opacity = "0.5";
+      }
+      
+      card.appendChild(input);
+
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      if (isClosed) {
+        hint.textContent = `⏳ Прием ставок закрыт`;
+        hint.style.color = "#d93025";
+        hint.style.fontWeight = "bold";
+      } else {
+        const closeText = event.closes_at 
+            ? ` | До: ${new Date(event.closes_at).toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})}` 
+            : "";
+        hint.textContent = `Мин. ${MIN_BET.toFixed(2)} TON${closeText}`;
+      }
+      card.appendChild(hint);
+
+      const est = document.createElement("div");
+      est.className = "win-estimate";
+      est.id = `est-${event.id}`;
+      est.textContent = isClosed ? "Ожидаем завершения события" : "Укажите сумму для прогноза";
+      card.appendChild(est);
+
+      const btnGrid = document.createElement("div");
+      btnGrid.className = "btn-grid";
+
+      const btnYes = document.createElement("button");
+      btnYes.className = "btn-yes";
+      btnYes.textContent = "ДА";
+      btnYes.disabled = isClosed;
+      btnYes.addEventListener("click", () => doBet(event.id, true));
+
+      const btnNo = document.createElement("button");
+      btnNo.className = "btn-no";
+      btnNo.textContent = "НЕТ";
+      btnNo.disabled = isClosed;
+      btnNo.addEventListener("click", () => doBet(event.id, false));
+
+      btnGrid.appendChild(btnYes);
+      btnGrid.appendChild(btnNo);
+      card.appendChild(btnGrid);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      
+      const status = document.createElement("div");
+      status.id = `status-${event.id}`;
+      status.style.fontSize = "11px";
+      status.textContent = "";
+
+      const shareBtn = document.createElement("button");
+      shareBtn.className = "share-btn";
+      shareBtn.innerHTML = "Поделиться ↗️";
+      shareBtn.addEventListener("click", () => shareEvent(event.id, event.title || `Событие #${event.id}`));
+
+      meta.appendChild(status);
+      meta.appendChild(shareBtn);
+      card.appendChild(meta);
+
+      return card;
+    }
+
+    function setCardResolved(eventId, winningOutcome) {
+      const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
+      if (!card) return;
+
+      const status = document.getElementById(`status-${eventId}`);
+      if (status) {
+        status.textContent = `Завершено: ${winningOutcome ? "ДА" : "НЕТ"}`;
+        status.className = "success";
+      }
+
+      card.querySelectorAll("button").forEach(b => b.disabled = true);
+      const input = document.getElementById(`am-${eventId}`);
+      if (input) {
+        input.disabled = true;
+        input.style.opacity = "0.5";
+      }
+
+      const est = document.getElementById(`est-${eventId}`);
+      if (est) est.innerHTML = `Событие завершено. Выигрыш скоро будет распределен.`;
+    }
+
+    function renderFromState(eventId) {
+      const info = state.get(eventId);
+      if (!info) return;
+
+      const y = info.yes;
+      const n = info.no;
+      const total = info.total;
+
+      const yP = total > 0 ? Math.round((y / total) * 100) : 50;
+
+      const barY = document.getElementById(`bar-y-${eventId}`);
+      const barN = document.getElementById(`bar-n-${eventId}`);
+      if (barY) barY.style.width = `${clamp(yP, 0, 100)}%`;
+      if (barN) barN.style.width = `${clamp(100 - yP, 0, 100)}%`;
+
+      const txtY = document.getElementById(`txt-y-${eventId}`);
+      const txtN = document.getElementById(`txt-n-${eventId}`);
+      if (txtY) txtY.textContent = `ДА: ${yP}% (${fmtTon(y)} T)`;
+      if (txtN) txtN.textContent = `НЕТ: ${100 - yP}% (${fmtTon(n)} T)`;
+
+      if (info.isResolved) setCardResolved(eventId, info.winningOutcome);
+      else renderEstimate(eventId);
+    }
+
+    // === УМНАЯ МАТЕМАТИКА КОМИССИЙ ===
+    function renderEstimate(eventId) {
+      const est = document.getElementById(`est-${eventId}`);
+      const input = document.getElementById(`am-${eventId}`);
+      const info = state.get(eventId);
+      
+      // Ищем событие в загруженном массиве, чтобы узнать публичное оно или приватное
+      const evData = eventList.find(e => String(e.id) === String(eventId));
+      const isPrivate = evData?.is_private === 1;
+
+      if (!est) return;
+      if (!info) { est.textContent = "Нет данных с блокчейна"; return; }
+      if (info.isResolved) return;
+
+      const isClosed = document.querySelector(`.card[data-event-id="${eventId}"] button`)?.disabled;
+      if (isClosed) {
+          est.textContent = "Ожидаем завершения события";
+          return;
+      }
+
+      const amount = parseAmount(input?.value);
+      if (amount === null) { est.textContent = "Укажите сумму для прогноза"; return; }
+      if (amount < MIN_BET) { est.textContent = `Минимальная ставка ${MIN_BET.toFixed(2)} TON`; return; }
+
+      const yesPool = info.yes;
+      const noPool = info.no;
+
+      if ((yesPool + noPool) <= 0) {
+        est.textContent = "Пока нет ставок — стань первым.";
+        return;
+      }
+
+      const denomYes = (yesPool + amount);
+      const denomNo = (noPool + amount);
+      if (denomYes <= 0 || denomNo <= 0) { est.textContent = "Недостаточно данных для расчёта"; return; }
+
+      let winIfYes, winIfNo;
+
+      if (isPrivate) {
+        // === ЛОГИКА ДЛЯ ПРИВАТНЫХ СПОРОВ (P2P) ===
+        // 2% с ОБЩЕГО пула (Total Pool)
+        const totalPool = yesPool + noPool + amount;
+        const netPool = totalPool * 0.98; // Удерживаем базовые 2% гаранта
+        
+        winIfYes = netPool * (amount / denomYes);
+        winIfNo  = netPool * (amount / denomNo);
+      } else {
+        // === ЛОГИКА ДЛЯ ПУБЛИЧНЫХ СОБЫТИЙ (Оригинальная) ===
+        // 10% с ПУЛА ПРОИГРАВШИХ (то есть с чистой прибыли)
+        const fee = 0.9; 
+        winIfYes = amount + (amount / denomYes) * (noPool * fee);
+        winIfNo  = amount + (amount / denomNo)  * (yesPool * fee);
+      }
+
+      // Считаем чистую прибыль для подсветки зеленым/красным
+      const profitYes = winIfYes - amount;
+      const profitNo = winIfNo - amount;
+
+      est.innerHTML =
+        `Победа <b>ДА</b>: ~${winIfYes.toFixed(2)} T <span class="profit" style="color:${profitYes >= 0 ? '#34c759' : '#ff3b30'}">(${profitYes > 0 ? '+' : ''}${profitYes.toFixed(2)})</span><br>` +
+        `Победа <b>НЕТ</b>: ~${winIfNo.toFixed(2)} T <span class="profit" style="color:${profitNo >= 0 ? '#34c759' : '#ff3b30'}">(${profitNo > 0 ? '+' : ''}${profitNo.toFixed(2)})</span>`;
+
+      // Добавляем красивую текстовую подсказку о комиссии
+      if (isPrivate) {
+        est.innerHTML += `<div style="font-size: 10.5px; color: #888; margin-top: 8px; line-height: 1.3;">🛡 Базовая комиссия: 2% от общего пула.<br>⚠️ При споре и вызове гаранта: 15%</div>`;
+      } else {
+        est.innerHTML += `<div style="font-size: 10.5px; color: #888; margin-top: 8px; line-height: 1.3;">📊 Комиссия платформы: 10% с чистой прибыли</div>`;
+      }
+    }
+
+    function setSending(eventId, isSending, message) {
+      const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
+      const status = document.getElementById(`status-${eventId}`);
+      if (status) {
+        status.textContent = message || "";
+        status.className = isSending ? "error" : "success";
+      }
+      if (card) card.querySelectorAll("button").forEach(b => b.disabled = isSending);
+    }
+
+    async function doBet(eventId, outcome) {
+      const info = state.get(eventId);
+      if (info?.isResolved) return;
+
+      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
+      if (amount === null || amount < MIN_BET) {
+        setSending(eventId, false, `❌ Введите сумму (мин. ${MIN_BET.toFixed(2)} TON)`);
+        return;
+      }
+
+      if (!tonConnectUI.connected) {
+        setSending(eventId, false, "Подключите кошелек в шапке ⬆️");
+        tonConnectUI.connectWallet();
+        return;
+      }
+
+      setSending(eventId, true, "Подтвердите транзакцию в кошельке...");
+
+      try {
+        const cell = new TonWeb.boc.Cell();
+        cell.bits.writeUint(0x336af5ef, 32); 
+        cell.bits.writeUint(eventId, 64);
+        cell.bits.writeUint(outcome ? 1 : 0, 1);
+        
+        const bocBytes = await cell.toBoc();
+        const payloadBase64 = TonWeb.utils.bytesToBase64(bocBytes);
+        const amountNano = Math.floor((amount + BET_NETWORK_FEE) * 1e9).toString();
+
+        const transaction = {
+          validUntil: Math.floor(Date.now() / 1000) + 360, 
+          messages: [{ address: CONTRACT, amount: amountNano, payload: payloadBase64 }]
+        };
+
+        await tonConnectUI.sendTransaction(transaction);
+        setSending(eventId, false, "✅ Ставка успешно отправлена!");
+      } catch (e) {
+        if (e.message && e.message.includes("User rejects")) {
+          setSending(eventId, false, "❌ Вы отменили транзакцию");
+        } else {
+          setSending(eventId, false, "❌ Ошибка отправки");
+        }
+      }
+    }
+
+    function clearTimer() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    }
+
+    function renderApp(root) {
+      root.appendChild(buildFilters(root));
+
+      const ids = [];
+      let shown = 0;
+
+      for (const ev of eventList) {
+        if (typeof ev?.id !== "number" || !Number.isFinite(ev.id)) continue;
+        if (activeCategory !== "all" && String(ev.category || "").toLowerCase() !== activeCategory) continue;
+
+        shown++;
+        ids.push(ev.id);
+        root.appendChild(buildCard(ev));
+      }
+
+      if (shown === 0) {
+        const empty = document.createElement("div");
+        empty.className = "loading";
+        empty.textContent = "В этой категории пока нет событий";
+        root.appendChild(empty);
+      }
+
+      syncAllEvents(ids);
+      clearTimer();
+      refreshTimer = setInterval(() => syncAllEvents(ids), REFRESH_MS);
     }
 
     (function main() {
       const params = new URLSearchParams(window.location.search);
-      eventList = JSON.parse(atob(params.get("data")));
-      renderApp();
-      const target = params.get("ev");
-      if (target) setTimeout(() => { document.querySelector(`[onclick*="shareEvent(${target}"]`)?.scrollIntoView({behavior:"smooth"}); }, 800);
+      const b64Data = params.get("data");
+      if (!b64Data) {
+        setAppError("Нет данных событий (?data=...). Открой WebApp через бота.");
+        return;
+      }
+
+      try {
+        eventList = safeBase64ToJson(b64Data);
+        if (!Array.isArray(eventList)) throw new Error("data is not array");
+      } catch {
+        setAppError("Не удалось прочитать список событий. Открой WebApp заново через бота.");
+        return;
+      }
+
+      const content = document.getElementById("content");
+      content.innerHTML = "";
+
+      if (eventList.length === 0) {
+        content.innerHTML = `<div class="loading">Пока нет активных событий</div>`;
+        return;
+      }
+
+      renderApp(content);
+
+      const targetEventId = params.get("ev");
+      if (targetEventId) {
+        setTimeout(() => {
+          const el = document.querySelector(`.card[data-event-id="${targetEventId}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.style.transition = "box-shadow 0.5s";
+            el.style.boxShadow = "0 0 0 4px #0088cc, 0 10px 25px rgba(0,0,0,0.06)";
+            setTimeout(() => el.style.boxShadow = "0 10px 25px rgba(0,0,0,0.06)", 2000);
+          }
+        }, 600);
+      }
     })();
   </script>
 </body>
 </html>
-
