@@ -217,7 +217,6 @@
       return null;
     }
 
-    // === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЧТЕНИЯ ДАННЫХ ИЗ БЛОКЧЕЙНА ===
     function extractEventDataFromStack(stack) {
       if (!Array.isArray(stack)) return null;
       let elements = extractTupleElements(stack[0]);
@@ -232,7 +231,6 @@
         }
       }
       
-      // В новом смарт-контракте элементов стало 5 (добавился eventType), поэтому проверяем, что их хотя бы 4
       if (!elements || elements.length < 4) return null;
 
       const yesNano = asBigIntFromElement(elements[0]);
@@ -244,12 +242,10 @@
       return { yesNano, noNano, isResolved, winningOutcome };
     }
 
-    // === ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ПУСТЫХ СОБЫТИЙ (ГДЕ ЕЩЕ НЕТ СТАВОК) ===
     function isNullOptionalEvent(stack) {
       if (!Array.isArray(stack) || stack.length === 0) return true;
       const s0 = stack[0];
       if (!s0) return true;
-      // Учитываем все форматы пустого ответа
       if (s0 === "null" || s0[0] === "null" || s0.type === "null") return true;
       if (s0[0] === "tuple" && Array.isArray(s0[1]?.elements) && s0[1].elements.length === 0) return true;
       if (s0[0] === "list" && Array.isArray(s0[1]?.elements) && s0[1].elements.length === 0) return true;
@@ -552,13 +548,11 @@
       else renderEstimate(eventId);
     }
 
-    // === УМНАЯ МАТЕМАТИКА КОМИССИЙ ===
     function renderEstimate(eventId) {
       const est = document.getElementById(`est-${eventId}`);
       const input = document.getElementById(`am-${eventId}`);
       const info = state.get(eventId);
       
-      // Ищем событие в загруженном массиве, чтобы узнать публичное оно или приватное
       const evData = eventList.find(e => String(e.id) === String(eventId));
       const isPrivate = evData?.is_private === 1;
 
@@ -591,22 +585,17 @@
       let winIfYes, winIfNo;
 
       if (isPrivate) {
-        // === ЛОГИКА ДЛЯ ПРИВАТНЫХ СПОРОВ (P2P) ===
-        // 2% с ОБЩЕГО пула (Total Pool)
         const totalPool = yesPool + noPool + amount;
-        const netPool = totalPool * 0.98; // Удерживаем базовые 2% гаранта
+        const netPool = totalPool * 0.98; 
         
         winIfYes = netPool * (amount / denomYes);
         winIfNo  = netPool * (amount / denomNo);
       } else {
-        // === ЛОГИКА ДЛЯ ПУБЛИЧНЫХ СОБЫТИЙ (Оригинальная) ===
-        // 10% с ПУЛА ПРОИГРАВШИХ (то есть с чистой прибыли)
         const fee = 0.9; 
         winIfYes = amount + (amount / denomYes) * (noPool * fee);
         winIfNo  = amount + (amount / denomNo)  * (yesPool * fee);
       }
 
-      // Считаем чистую прибыль для подсветки зеленым/красным
       const profitYes = winIfYes - amount;
       const profitNo = winIfNo - amount;
 
@@ -614,7 +603,6 @@
         `Победа <b>ДА</b>: ~${winIfYes.toFixed(2)} T <span class="profit" style="color:${profitYes >= 0 ? '#34c759' : '#ff3b30'}">(${profitYes > 0 ? '+' : ''}${profitYes.toFixed(2)})</span><br>` +
         `Победа <b>НЕТ</b>: ~${winIfNo.toFixed(2)} T <span class="profit" style="color:${profitNo >= 0 ? '#34c759' : '#ff3b30'}">(${profitNo > 0 ? '+' : ''}${profitNo.toFixed(2)})</span>`;
 
-      // Добавляем красивую текстовую подсказку о комиссии
       if (isPrivate) {
         est.innerHTML += `<div style="font-size: 10.5px; color: #888; margin-top: 8px; line-height: 1.3;">🛡 Базовая комиссия: 2% от общего пула.<br>⚠️ При споре и вызове гаранта: 15%</div>`;
       } else {
@@ -710,11 +698,25 @@
       refreshTimer = setInterval(() => syncAllEvents(ids), REFRESH_MS);
     }
 
+    // === ГЛАВНАЯ ФУНКЦИЯ ===
     (function main() {
       const params = new URLSearchParams(window.location.search);
-      const b64Data = params.get("data");
+      let b64Data = params.get("payload");
+
+      // ЗАЩИТА ОТ СТАРЫХ КНОПОК
+      if (!b64Data && params.get("data")) {
+        const content = document.getElementById("content");
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; font-family: sans-serif; color: #111827; background: #fff; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-top: 20px;">
+                <h2 style="color: #ff3b30; margin-bottom: 15px;">⚠️ Ссылка устарела</h2>
+                <p style="font-size: 15px; line-height: 1.5; color: #555;">Пожалуйста, закройте это окно, вернитесь в бота и отправьте команду <b>/start</b>, чтобы получить актуальное меню и принять правила платформы.</p>
+            </div>
+        `;
+        return; // Останавливаем выполнение скрипта
+      }
+
       if (!b64Data) {
-        setAppError("Нет данных событий (?data=...). Открой WebApp через бота.");
+        setAppError("Нет данных событий. Открой WebApp через бота.");
         return;
       }
 
