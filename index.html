@@ -11,93 +11,70 @@
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; display: flex; flex-direction: column; align-items: center; }
-    #app { width: 100%; max-width: 420px; }
+    body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 0; overflow-x: hidden; }
+    
+    /* SIDEBAR */
+    #sidebar { position: fixed; left: -250px; top: 0; width: 250px; height: 100%; background: #111827; color: white; transition: 0.3s; z-index: 1000; padding-top: 60px; box-shadow: 5px 0 15px rgba(0,0,0,0.3); }
+    #sidebar.active { left: 0; }
+    .menu-item { padding: 15px 25px; font-size: 16px; font-weight: 600; cursor: pointer; border-bottom: 1px solid #1f2937; }
+    .menu-item:active { background: #1f2937; }
+    .overlay { position: fixed; display: none; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+    .overlay.active { display: block; }
 
-    .header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 16px; padding: 0 4px; }
-    .logo { font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.5px;}
+    /* HEADER */
+    .header { position: sticky; top: 0; background: #fff; z-index: 900; display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #e5e7eb; }
+    .burger { font-size: 24px; cursor: pointer; padding: 5px; color: #111827; }
+    .logo { font-size: 18px; font-weight: 800; color: #111827; }
 
-    /* ВКЛАДКИ */
-    .tabs { display: flex; gap: 8px; width: 100%; margin-bottom: 16px; background: #fff; padding: 6px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .tab-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.2s ease; background: transparent; color: #6b7280; }
-    .tab-btn.active { background: #111827; color: #fff; }
+    /* CONTENT */
+    #app { padding: 15px; max-width: 420px; margin: 0 auto; }
+    .tab-title { font-size: 20px; font-weight: 800; margin-bottom: 15px; color: #111827; }
+    .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; position: relative; }
+    
+    .status-badge { font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 8px; margin-bottom: 12px; display: inline-block; text-transform: uppercase; }
+    .st-win { background: #d1fae5; color: #065f46; border: 1px solid #34c759; }
+    .st-loss { background: #fee2e2; color: #991b1b; border: 1px solid #ff3b30; }
+    .st-wait { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
 
-    .fiat-banner {
-      background: linear-gradient(135deg, #0088cc, #005580);
-      color: white; border-radius: 20px; padding: 16px 20px; margin-bottom: 16px;
-      display: flex; align-items: center; justify-content: space-between; width: 100%; cursor: pointer;
-      box-shadow: 0 8px 20px rgba(0, 136, 204, 0.25); transition: transform 0.1s;
-    }
-    .fiat-banner:active { transform: scale(0.97); }
-    .fiat-banner-text { font-size: 14px; font-weight: 600; line-height: 1.3; }
-    .fiat-banner-text span { font-size: 12px; font-weight: 400; opacity: 0.85; }
-    .fiat-banner-btn { background: #fff; color: #0088cc; padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 4px; }
-
-    .filters { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 12px 2px; margin-bottom: 6px; scrollbar-width: none; }
-    .filters::-webkit-scrollbar { display: none; }
-    .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; user-select: none; }
-    .chip.active { background: #111827; color: #fff; border-color: #111827; }
-
-    .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
-    h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
-
-    /* СТАТУСЫ СТАВОК */
-    .bet-status { margin: 12px 0; padding: 12px; border-radius: 16px; font-size: 14px; font-weight: 800; text-align: center; border: 2px solid #e5e7eb; }
-    .bet-pending { background: #f3f4f6; color: #6b7280; border-style: dashed; }
-    .bet-win { background: #ecfdf5; color: #059669; border-color: #34c759; animation: win-glow 2s infinite; }
-    .bet-loss { background: #fef2f2; color: #dc2626; border-color: #ff3b30; }
-    @keyframes win-glow { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-
-    .event-img { width: 100%; height: 160px; border-radius: 18px; margin: 8px 0 14px 0; display: block; object-fit: cover; background: #f3f4f6; }
+    .event-img { width: 100%; height: 160px; border-radius: 18px; object-fit: cover; margin-bottom: 14px; background: #f3f4f6; display: block; }
     .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
     .poll-yes { background: #34c759; transition: width 0.6s; }
     .poll-no { background: #ff3b30; transition: width 0.6s; }
-    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; }
-    
-    input { width: 100%; height: 56px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 22px; font-weight: 700; text-align: center; outline: none; color: #111827; background-color: #f9fafb; transition: all 0.2s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
-    input:focus { border-color: #0088cc; background-color: #ffffff; box-shadow: 0 0 0 4px rgba(0, 136, 204, 0.15); }
-    
-    .hint { font-size: 12px; color: #888; margin-top: -4px; margin-bottom: 12px; text-align: center; }
-    .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; min-height: 32px; line-height: 1.55; text-align: center; }
-    .profit { font-size: 11px; }
-    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-    
-    button.bet-btn { padding: 16px; border-radius: 16px; border: none; color: #fff; font-size: 16px; font-weight: 850; cursor: pointer; transition: all 0.1s ease; }
-    button.bet-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; }
 
+    input { width: 100%; height: 56px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 22px; font-weight: 700; text-align: center; outline: none; background: #f9fafb; margin-bottom: 10px; }
+    input:focus { border-color: #0088cc; background: #fff; }
+
+    .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; min-height: 32px; text-align: center; line-height: 1.4; }
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { padding: 16px; border-radius: 16px; border: none; color: #fff; font-size: 16px; font-weight: 850; cursor: pointer; transition: all 0.1s ease; }
     .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
-    .btn-yes:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 #28a745; }
     .btn-no { background: #ff3b30; box-shadow: 0 4px 0 #d93025; }
-    .btn-no:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 #d93025; }
-    
-    .meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; color: #777; font-size: 12px; }
-    .share-btn { background: #f3f4f6; border: 1px solid #e5e7eb; color: #374151; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .loading { color: #888; margin-top: 50px; text-align: center; }
-    .error { color: #b42318; background:#fff; border-radius: 18px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
-    .success { color: #067647; }
+    button:active { transform: translateY(4px); box-shadow: none; }
+    button:disabled { opacity: 0.5; transform: none; box-shadow: none; }
+
+    .loading { color: #888; margin-top: 50px; text-align: center; font-weight: 600; }
+    .error-msg { color: #b42318; padding: 15px; text-align: center; background: #fff; border-radius: 15px; }
   </style>
 </head>
-
 <body>
+
+  <div class="overlay" onclick="toggleMenu()"></div>
+  <div id="sidebar">
+    <div class="menu-item" onclick="switchTab('active')">🔥 Актуальные пари</div>
+    <div class="menu-item" onclick="switchTab('history')">📊 Моя История</div>
+    <div class="menu-item" onclick="switchTab('archive')">📂 Архив событий</div>
+  </div>
+
+  <div class="header">
+    <div class="burger" onclick="toggleMenu()">☰</div>
+    <div class="logo">Hype Oracle</div>
+    <div id="ton-connect"></div>
+  </div>
+
   <div id="app">
-    <div class="header">
-      <div class="logo"><span>👑 HypeOracle</span></div>
-      <div id="ton-connect"></div>
-    </div>
-    
-    <div class="tabs">
-      <button id="tab-main" class="tab-btn active" onclick="switchTab('main')">События</button>
-      <button id="tab-history" class="tab-btn" onclick="switchTab('history')">Мои ставки</button>
-    </div>
-
-    <div id="fiat-section">
-      <div class="fiat-banner" onclick="openFiatOnRamp()">
-        <div class="fiat-banner-text">Нет TON для ставки?<br><span>Пополни с банк. карты легально</span></div>
-        <div class="fiat-banner-btn">Купить 💳</div>
-      </div>
-    </div>
-
-    <div id="content"><div class="loading">Загрузка...</div></div>
+    <div id="current-tab-title" class="tab-title">Актуальные пари</div>
+    <div id="content"><div class="loading">Загрузка данных...</div></div>
   </div>
 
   <script>
@@ -109,56 +86,35 @@
       buttonRootId: 'ton-connect'
     });
 
-    const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG"; 
+    const CONTRACT = "EQB7MjT_ZRAG9TIrb7dzJJ5ETGD-i1z6_aDozrS0BQSqqGkh";
     const REFRESH_MS = 15000;
     const MIN_BET = 0.20;
-    const BET_NETWORK_FEE = 0.05;
-    const BOT_USERNAME = "hypeoracle_bot";
-
-    const CATEGORY_LABELS = { sport: "Спорт", politics: "Политика", finance: "Финансы", showbiz: "Шоу-Бизнес", private: "Приватные" };
-
+    
     let eventList = [];
-    let userBets = []; 
-    let currentTab = "main";
-    let activeCategory = "all";
+    let userBets = [];
+    let currentTab = 'active';
     let refreshTimer = null;
     const state = new Map();
 
+    // === ТЕХНІЧНІ ФУНКЦІЇ ОРИГІНАЛУ ===
+    function toggleMenu() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.querySelector('.overlay').classList.toggle('active');
+    }
+
     function switchTab(tab) {
       currentTab = tab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
-      document.getElementById('fiat-section').style.display = (tab === 'main') ? 'block' : 'none';
-      const content = document.getElementById('content');
-      content.innerHTML = "";
-      renderApp(content);
-    }
-
-    function shareEvent(eventId, title) {
-      const deepLink = `https://t.me/${BOT_USERNAME}?start=ev_${eventId}`;
-      const text = `🔥 Заходи и делай ставку: ${title}`;
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(deepLink)}&text=${encodeURIComponent(text)}`;
-      if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl); else window.open(shareUrl, '_blank');
-    }
-
-    function openFiatOnRamp() {
-      const walletUrl = "https://t.me/wallet";
-      if (tg?.openTelegramLink) tg.openTelegramLink(walletUrl); else window.open(walletUrl, '_blank');
+      const titles = { active: 'Актуальные пари', history: 'Моя История', archive: 'Архив событий' };
+      document.getElementById('current-tab-title').textContent = titles[tab];
+      toggleMenu();
+      renderApp();
     }
 
     function safeBase64ToJson(b64) {
       try {
-        const jsonString = decodeURIComponent(escape(window.atob((b64 || "").replace(/-/g, "+").replace(/_/g, "/"))));
-        return JSON.parse(jsonString);
+        return JSON.parse(decodeURIComponent(escape(window.atob((b64 || "").replace(/-/g, "+").replace(/_/g, "/")))));
       } catch (e) { return null; }
     }
-
-    function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
-    function parseAmount(inputValue) {
-      const n = Number.parseFloat(String(inputValue ?? "").replace(",", "."));
-      return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
-    }
-    function fmtTon(n) { return Number.isFinite(n) ? n.toFixed(2) : "--"; }
 
     function debounce(func, wait) {
       let timeout;
@@ -168,222 +124,197 @@
       };
     }
 
-    function setAppError(msg) {
-      const content = document.getElementById("content");
-      content.innerHTML = `<div class="error">${msg}</div>`;
-    }
+    // === РОБОТА З БЛОКЧЕЙНОМ (ОРИГІНАЛ) ===
+    async function syncAllEvents(ids) {
+      if (!ids.length) return;
+      const params = new URLSearchParams(window.location.search);
+      const API_KEY = params.get("api");
+      if (!API_KEY) return;
 
-    // --- ОРИГИНАЛЬНЫЙ ПАРСИНГ ИЗ TONCENTER ---
-    function hexToBigInt(x) {
-      if (typeof x !== "string") return null;
-      if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
-      return /^\d+$/.test(x) ? BigInt(x) : null;
-    }
-
-    function asBigIntFromElement(el) {
-      const a = el?.number?.number ?? el?.number;
-      if (a !== undefined) try { return BigInt(String(a)); } catch {}
-      return hexToBigInt(String(el?.value ?? el?.num ?? el?.valueHex ?? ""));
-    }
-
-    function extractTupleElements(stackItem) {
-      if (Array.isArray(stackItem) && stackItem.length >= 2) {
-        const elements = stackItem[1]?.elements;
-        if (Array.isArray(elements)) return elements;
-      }
-      if (stackItem && typeof stackItem === "object") {
-        const v = stackItem.value ?? stackItem.elements ?? stackItem.tuple;
-        if (Array.isArray(v)) return v;
-        return (v?.elements && Array.isArray(v.elements)) ? v.elements : null;
-      }
-      return null;
-    }
-
-    async function syncAllEvents(eventIds) {
-      if (!eventIds.length) return;
-      const api = new URLSearchParams(window.location.search).get("api");
-      const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(api)}`;
+      const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${API_KEY}`;
       
-      for (let i = 0; i < eventIds.length; i += 3) {
-        const chunk = eventIds.slice(i, i + 3);
-        const promises = chunk.map(async (eventId) => {
-          try {
-            const res = await fetch(url, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: eventId, jsonrpc: "2.0", method: "runGetMethod", params: { address: CONTRACT, method: "get_event", stack: [["num", String(eventId)]] } })
-            });
-            const json = await res.json();
-            const s = json?.result?.stack;
-            if (!s || s.length < 4) return;
+      for (const id of ids) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: id, jsonrpc: "2.0", method: "runGetMethod",
+              params: { address: CONTRACT, method: "get_event", stack: [["num", String(id)]] }
+            })
+          });
+          const json = await res.json();
+          if (json.result && json.result.stack) {
+            const stack = json.result.stack;
+            const yes = Number(stack[0][1]) / 1e9;
+            const no = Number(stack[1][1]) / 1e9;
+            const isResolved = stack[2][1] !== "0x0";
+            const winOutcome = stack[3][1] !== "0x0";
             
-            // Парсинг строго як у вашому оригінальному коді
-            const yesNano = asBigIntFromElement(s[0]);
-            const noNano = asBigIntFromElement(s[1]);
-            const isResolved = asBigIntFromElement(s[2]) !== 0n;
-            const winOut = asBigIntFromElement(s[3]) !== 0n;
-
-            state.set(eventId, {
-              yes: Number(yesNano)/1e9, no: Number(noNano)/1e9, 
-              total: (Number(yesNano)+Number(noNano))/1e9, 
-              isResolved, winningOutcome: winOut
-            });
-            renderFromState(eventId);
-          } catch (e) {}
-        });
-        await Promise.all(promises);
+            state.set(id, { yes, no, total: yes + no, isResolved, winOutcome });
+            updateCardUI(id);
+          }
+        } catch (e) { console.error("Sync error:", e); }
       }
     }
 
-    function buildCard(event) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.dataset.eventId = String(event.id);
-      card.innerHTML = `
-        <h2>${event.title || 'Событие'}</h2>
-        ${event.is_private ? '<div style="background:#111827;color:#fff;font-size:11px;padding:4px 8px;border-radius:6px;display:inline-block;margin-bottom:12px;">🔒 ПРИВАТНЫЙ СПОР</div>' : ''}
-        ${event.image_url ? `<img class="event-img" src="${event.image_url}">` : ''}
-        <div class="poll-container"><div class="poll-yes" id="bar-y-${event.id}" style="width:50%"></div><div class="poll-no" id="bar-n-${event.id}" style="width:50%"></div></div>
-        <div class="stats-text"><span id="txt-y-${event.id}">ДА: --</span><span id="txt-n-${event.id}">НЕТ: --</span></div>
-        <div id="status-bet-${event.id}"></div>
-        <input type="number" inputmode="decimal" placeholder="Сумма TON" id="am-${event.id}">
-        <div class="hint">Мин. ${MIN_BET.toFixed(2)} TON</div>
-        <div class="win-estimate" id="est-${event.id}">Укажите сумму для прогноза</div>
-        <div class="btn-grid">
-          <button class="bet-btn btn-yes" onclick="doBet(${event.id}, true)">ДА</button>
-          <button class="bet-btn btn-no" onclick="doBet(${event.id}, false)">НЕТ</button>
-        </div>
-        <div class="meta"><div id="status-${event.id}"></div><button class="share-btn" onclick="shareEvent(${event.id}, '${event.title}')">Поделиться ↗️</button></div>
-      `;
-      const input = card.querySelector('input');
-      input.addEventListener("input", debounce(() => renderEstimate(event.id), 300));
-      return card;
-    }
-
-    function renderFromState(eventId) {
-      const info = state.get(eventId);
+    function updateCardUI(id) {
+      const info = state.get(id);
       if (!info) return;
 
-      const total = info.total || 0;
-      const yP = total > 0 ? Math.round((info.yes / total) * 100) : 50;
+      const yP = info.total > 0 ? Math.round((info.yes / info.total) * 100) : 50;
       
-      document.getElementById(`bar-y-${eventId}`).style.width = `${yP}%`;
-      document.getElementById(`bar-n-${eventId}`).style.width = `${100-yP}%`;
-      document.getElementById(`txt-y-${eventId}`).textContent = `ДА: ${yP}% (${fmtTon(info.yes)} T)`;
-      document.getElementById(`txt-n-${eventId}`).textContent = `НЕТ: ${100-yP}% (${fmtTon(info.no)} T)`;
+      const barY = document.getElementById(`bar-y-${id}`);
+      const barN = document.getElementById(`bar-n-${id}`);
+      if (barY) barY.style.width = yP + "%";
+      if (barN) barN.style.width = (100 - yP) + "%";
 
-      // ОРИГИНАЛЬНАЯ ЛОГИКА СТАТУСА СТАВКИ
-      const myBet = userBets.find(b => b.event_id === eventId);
-      const sBet = document.getElementById(`status-bet-${eventId}`);
-      
-      if (myBet && sBet) {
-          const side = myBet.outcome === 1 ? "ДА" : "НЕТ";
-          if (info.isResolved) {
-              const win = (myBet.outcome === 1 && info.winningOutcome === true) || (myBet.outcome === 0 && info.winningOutcome === false);
-              sBet.className = `bet-status ${win ? 'bet-win' : 'bet-loss'}`;
-              sBet.innerHTML = win ? `🏆 ВЫИГРЫШ! Ставка на ${side}` : `❌ ПРОИГРЫШ. Ставка на ${side}`;
-              setCardResolved(eventId, info.winningOutcome);
-          } else {
-              sBet.className = "bet-status bet-pending";
-              sBet.innerHTML = `⏳ Ваша ставка: ${side} (В игре)`;
-          }
-      } else if (info.isResolved) {
-          setCardResolved(eventId, info.winningOutcome);
-      }
-      renderEstimate(eventId);
+      const txtY = document.getElementById(`txt-y-${id}`);
+      const txtN = document.getElementById(`txt-n-${id}`);
+      if (txtY) txtY.textContent = `ДА: ${yP}% (${info.yes.toFixed(2)} T)`;
+      if (txtN) txtN.textContent = `НЕТ: ${100 - yP}% (${info.no.toFixed(2)} T)`;
+
+      renderEstimate(id);
     }
 
-    function setCardResolved(eventId, win) {
-        const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
-        if (!card) return;
-        card.querySelectorAll("button").forEach(b => b.disabled = true);
-        const input = document.getElementById(`am-${eventId}`);
-        if (input) { input.disabled = true; input.style.opacity = "0.5"; }
-        const est = document.getElementById(`est-${eventId}`);
-        if (est) est.innerHTML = `Событие завершено: <b>${win ? 'ДА' : 'НЕТ'}</b>`;
-    }
-
-    // ОРИГИНАЛЬНЫЙ РАСЧЕТ ВЫИГРЫША
-    function renderEstimate(eventId) {
-      const info = state.get(eventId);
-      const input = document.getElementById(`am-${eventId}`);
-      const est = document.getElementById(`est-${eventId}`);
+    function renderEstimate(id) {
+      const est = document.getElementById(`est-${id}`);
+      const input = document.getElementById(`am-${id}`);
+      const info = state.get(id);
       if (!est || !info || info.isResolved) return;
 
-      const amount = parseAmount(input?.value);
-      if (!amount || amount < MIN_BET) { est.textContent = "Укажите сумму для прогноза"; return; }
-
-      const fee = 0.9;
-      const wY = amount + (amount / (info.yes + amount)) * (info.no * fee);
-      const wN = amount + (amount / (info.no + amount)) * (info.yes * fee);
-      
-      if (info.total === 0) {
-          est.innerHTML = "✨ <b>Вы первый!</b> Пул проигравших достанется вам.";
-      } else {
-          est.innerHTML = `Победа <b>ДА</b>: ~${wY.toFixed(2)} T | <b>НЕТ</b>: ~${wN.toFixed(2)} T`;
+      const val = parseFloat(input?.value);
+      if (isNaN(val) || val < MIN_BET) {
+        est.textContent = "Укажите сумму для прогноза";
+        return;
       }
+
+      const fee = 0.9; 
+      const winIfYes = val + (val / (info.yes + val)) * (info.no * fee);
+      const winIfNo = val + (val / (info.no + val)) * (info.yes * fee);
+
+      est.innerHTML = `Победа ДА: ~${winIfYes.toFixed(2)} T<br>Победа НЕТ: ~${winIfNo.toFixed(2)} T`;
     }
 
-    async function doBet(eventId, outcome) {
-      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
-      if (!amount || amount < MIN_BET) return;
-      if (!tonConnectUI.connected) { tonConnectUI.connectWallet(); return; }
+    async function doBet(id, outcome) {
+      const input = document.getElementById(`am-${id}`);
+      const amount = parseFloat(input.value);
+      if (isNaN(amount) || amount < MIN_BET) return alert(`Мин. ставка ${MIN_BET} TON`);
+
+      if (!tonConnectUI.connected) return tonConnectUI.connectWallet();
 
       try {
         const cell = new TonWeb.boc.Cell();
-        cell.bits.writeUint(0x336af5ef, 32); cell.bits.writeUint(eventId, 64); cell.bits.writeUint(outcome ? 1 : 0, 1);
+        cell.bits.writeUint(0x336af5ef, 32); 
+        cell.bits.writeUint(id, 64);
+        cell.bits.writeUint(outcome ? 1 : 0, 1);
+        
         const boc = await cell.toBoc();
-        await tonConnectUI.sendTransaction({
-          validUntil: Math.floor(Date.now()/1000)+360,
-          messages: [{ address: CONTRACT, amount: Math.floor((amount+BET_NETWORK_FEE)*1e9).toString(), payload: TonWeb.utils.bytesToBase64(boc) }]
-        });
-      } catch (e) {}
+        const transaction = {
+          validUntil: Math.floor(Date.now() / 1000) + 360,
+          messages: [{
+            address: CONTRACT,
+            amount: Math.floor((amount + 0.05) * 1e9).toString(),
+            payload: TonWeb.utils.bytesToBase64(boc)
+          }]
+        };
+        await tonConnectUI.sendTransaction(transaction);
+      } catch (e) { alert("Ошибка транзакции"); }
     }
 
-    function renderApp(root) {
-      if (currentTab === "main") {
-          root.appendChild(buildFilters(root));
-          const list = eventList.filter(ev => activeCategory === "all" || ev.category === activeCategory);
-          list.forEach(ev => root.appendChild(buildCard(ev)));
-          syncAllEvents(list.map(e => e.id));
-      } else {
-          const hist = eventList.filter(ev => userBets.some(b => b.event_id === ev.id));
-          if (!hist.length) { root.innerHTML = '<div class="loading">У вас еще нет ставок</div>'; return; }
-          hist.forEach(ev => root.appendChild(buildCard(ev)));
-          syncAllEvents(hist.map(e => e.id));
+    // === РЕНДЕР ІНТЕРФЕЙСУ ===
+    function renderApp() {
+      const container = document.getElementById("content");
+      container.innerHTML = "";
+      
+      let filtered = [];
+      if (currentTab === 'active') filtered = eventList.filter(e => e.active === 1);
+      else if (currentTab === 'archive') filtered = eventList.filter(e => e.active === 0);
+      else if (currentTab === 'history') {
+        const betIds = userBets.map(b => b.event_id);
+        filtered = eventList.filter(e => betIds.includes(e.id));
       }
-    }
 
-    function buildFilters(container) {
-      const bar = document.createElement("div"); bar.className = "filters";
-      const chips = [{ key: "all", label: "Все" }];
-      new Set(eventList.map(e => e.category).filter(Boolean)).forEach(c => chips.push({ key: c, label: CATEGORY_LABELS[c] || c }));
-      chips.forEach(ch => {
-        const el = document.createElement("div");
-        el.className = "chip" + (ch.key === activeCategory ? " active" : "");
-        el.textContent = ch.label;
-        el.onclick = () => { activeCategory = ch.key; container.innerHTML = ""; renderApp(container); };
-        bar.appendChild(el);
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="loading">В этом разделе пока пусто</div>`;
+        return;
+      }
+
+      filtered.forEach(ev => {
+        const myBet = userBets.find(b => b.event_id === ev.id);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          ${myBet ? `
+            <div class="status-badge ${myBet.win_status === 1 ? 'st-win' : myBet.win_status === 0 ? 'st-loss' : 'st-wait'}">
+              ${myBet.outcome === 1 ? 'ВЫБОР: ДА' : 'ВЫБОР: НЕТ'} | 
+              ${myBet.win_status === 1 ? 'ВЫИГРЫШ' : myBet.win_status === 0 ? 'ПРОИГРЫШ' : 'В ОЖИДАНИИ'}
+            </div>
+          ` : ''}
+          <div style="font-weight:800; font-size:18px; margin-bottom:12px;">${ev.title}</div>
+          ${ev.image_url ? `<img src="${ev.image_url}" class="event-img">` : ''}
+          
+          <div class="poll-container">
+            <div id="bar-y-${ev.id}" class="poll-yes" style="width:50%"></div>
+            <div id="bar-n-${ev.id}" class="poll-no" style="width:50%"></div>
+          </div>
+          <div class="stats-text">
+            <span id="txt-y-${ev.id}">ДА: --</span>
+            <span id="txt-n-${ev.id}">НЕТ: --</span>
+          </div>
+
+          ${ev.active === 1 ? `
+            <input type="number" id="am-${ev.id}" placeholder="Сумма TON" inputmode="decimal">
+            <div id="est-${ev.id}" class="win-estimate">Укажите сумму для прогноза</div>
+            <div class="btn-grid">
+              <button class="btn-yes" onclick="doBet(${ev.id}, true)">ПРОГНОЗ ДА</button>
+              <button class="btn-no" onclick="doBet(${ev.id}, false)">ПРОГНОЗ НЕТ</button>
+            </div>
+          ` : `
+            <div style="text-align:center; padding:15px; background:#fff5f5; border-radius:12px; color:#ff3b30; font-weight:800;">
+              ПРИЕМ СТАВОК ЗАВЕРШЕН
+            </div>
+          `}
+        `;
+        container.appendChild(card);
+
+        // Додаємо дебаунс на інпут
+        const input = card.querySelector('input');
+        if (input) {
+          input.addEventListener('input', debounce(() => renderEstimate(ev.id), 300));
+        }
       });
-      return bar;
+
+      // Запускаємо синхронізацію
+      const ids = filtered.map(e => e.id);
+      syncAllEvents(ids);
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(() => syncAllEvents(ids), REFRESH_MS);
     }
 
+    // === START ===
     (function main() {
       const params = new URLSearchParams(window.location.search);
-      const b64 = params.get("payload");
-      if (!b64) { setAppError("Данные не найдены"); return; }
+      const data = safeBase64ToJson(params.get("payload"));
       
-      const decoded = safeBase64ToJson(b64);
-      eventList = decoded.events || [];
-      userBets = decoded.userBets || [];
+      if (!data) {
+        document.getElementById("content").innerHTML = `<div class="error-msg">Ошибка: Данные не найдены. Перезайдите через бота.</div>`;
+        return;
+      }
+
+      eventList = data.events || [];
+      userBets = data.userBets || [];
       
-      const content = document.getElementById("content");
-      content.innerHTML = "";
-      renderApp(content);
-      
-      refreshTimer = setInterval(() => {
-          const ids = Array.from(document.querySelectorAll('.card')).map(c => Number(c.dataset.eventId));
-          if (ids.length) syncAllEvents(ids);
-      }, REFRESH_MS);
+      renderApp();
+
+      // Скрол до конкретної події, якщо передано ID
+      const targetId = params.get("ev");
+      if (targetId) {
+        setTimeout(() => {
+          const el = document.querySelector(`.card[data-event-id="${targetId}"]`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 800);
+      }
     })();
   </script>
 </body>
