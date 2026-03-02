@@ -38,7 +38,7 @@
     .chip { flex: 0 0 auto; padding: 10px 12px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-weight: 800; font-size: 13px; cursor: pointer; user-select: none; }
     .chip.active { background: #111827; color: #fff; border-color: #111827; }
 
-    .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    .card { background: #fff; border-radius: 24px; padding: 22px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); margin-bottom: 16px; position: relative; }
     h2 { font-size: 18px; color: #222; margin: 0 0 10px 0; line-height: 1.35; text-align: center; }
 
     /* СТАТУСЫ СТАВОК */
@@ -48,43 +48,39 @@
     .bet-loss { background: #fef2f2; color: #dc2626; border-color: #ff3b30; }
     @keyframes win-glow { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
 
+    /* Скелетон анімація завантаження */
+    .skeleton { background: #eee; background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%); border-radius: 5px; background-size: 200% 100%; animation: 1.5s shine linear infinite; }
+    @keyframes shine { to { background-position-x: -200%; } }
+
     .event-img { width: 100%; height: 160px; border-radius: 18px; margin: 8px 0 14px 0; display: block; object-fit: cover; background: #f3f4f6; }
     .poll-container { height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; margin-bottom: 10px; }
-    .poll-yes { background: #34c759; transition: width 0.6s; }
-    .poll-no { background: #ff3b30; transition: width 0.6s; }
-    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; }
+    .poll-yes { background: #34c759; transition: width 0.6s; width: 50%; }
+    .poll-no { background: #ff3b30; transition: width 0.6s; width: 50%; }
+    .stats-text { display: flex; justify-content: space-between; font-weight: 700; font-size: 12px; margin-bottom: 14px; color: #666; gap: 10px; min-height: 15px; }
     
-    input { width: 100%; height: 56px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 22px; font-weight: 700; text-align: center; outline: none; color: #111827; background-color: #f9fafb; transition: all 0.2s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
-    input::placeholder { color: #9ca3af; font-weight: 500; }
+    input { width: 100%; height: 56px; border: 2px solid #e5e7eb; border-radius: 16px; font-size: 22px; font-weight: 700; text-align: center; outline: none; color: #111827; background-color: #f9fafb; transition: all 0.2s ease; }
     input:focus { border-color: #0088cc; background-color: #ffffff; box-shadow: 0 0 0 4px rgba(0, 136, 204, 0.15); }
     
     .hint { font-size: 12px; color: #888; margin-top: -4px; margin-bottom: 12px; text-align: center; }
     .win-estimate { font-size: 13px; color: #0088cc; font-weight: 650; margin-bottom: 12px; min-height: 32px; line-height: 1.55; text-align: center; }
-    .win-estimate b { color: #222; }
-    .profit { font-size: 11px; }
     .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
     button { padding: 16px; border-radius: 16px; border: none; color: #fff; font-size: 16px; font-weight: 850; cursor: pointer; transition: all 0.1s ease; }
-    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
-
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
     .btn-yes { background: #34c759; box-shadow: 0 4px 0 #28a745; }
     .btn-yes:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 #28a745; }
     .btn-no { background: #ff3b30; box-shadow: 0 4px 0 #d93025; }
     .btn-no:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 #d93025; }
     .meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; color: #777; font-size: 12px; }
-    
-    .share-btn { background: #f3f4f6; border: 1px solid #e5e7eb; color: #374151; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-    .share-btn:active { background: #e5e7eb; }
-
+    .share-btn { background: #f3f4f6; border: 1px solid #e5e7eb; color: #374151; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; }
     .loading { color: #888; margin-top: 50px; text-align: center; }
     .error { color: #b42318; background:#fff; border-radius: 18px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
-    .success { color: #067647; }
   </style>
 </head>
 
 <body>
   <div id="app">
     <div class="header">
-      <div class="logo"><span>👑 Hype<span class="logo-accent">Oracle</span></span></div>
+      <div class="logo"><span>👑 HypeOracle</span></div>
       <div id="ton-connect"></div>
     </div>
     
@@ -112,22 +108,16 @@
       buttonRootId: 'ton-connect'
     });
 
-    const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG"; // Обновлен адрес контракта
+    const CONTRACT = "EQDY-ZA54ipvqiA8WeB64yI1h_2OB4M3AQxn924V0U6VwfNG"; 
     const REFRESH_MS = 15000;
     const MIN_BET = 0.20;
     const BET_NETWORK_FEE = 0.05;
     const BOT_USERNAME = "hypeoracle_bot";
 
-    const CATEGORY_LABELS = {
-      sport: "Спорт",
-      politics: "Политика",
-      finance: "Финансы",
-      showbiz: "Шоу-Бизнес",
-      private: "Приватные"
-    };
+    const CATEGORY_LABELS = { sport: "Спорт", politics: "Политика", finance: "Финансы", showbiz: "Шоу-Бизнес", private: "Приватные" };
 
     let eventList = [];
-    let userBets = []; // Сюда попадает история из бота
+    let userBets = []; 
     let currentTab = "main";
     let activeCategory = "all";
     let refreshTimer = null;
@@ -137,25 +127,10 @@
       currentTab = tab;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
-      
-      const fiat = document.getElementById('fiat-section');
-      fiat.style.display = (tab === 'main') ? 'block' : 'none';
-      
+      document.getElementById('fiat-section').style.display = (tab === 'main') ? 'block' : 'none';
       const content = document.getElementById('content');
       content.innerHTML = "";
       renderApp(content);
-    }
-
-    function shareEvent(eventId, title) {
-      const deepLink = `https://t.me/${BOT_USERNAME}?start=ev_${eventId}`;
-      const text = `🔥 Заходи и делай ставку: ${title}`;
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(deepLink)}&text=${encodeURIComponent(text)}`;
-      if (tg && tg.openTelegramLink) tg.openTelegramLink(shareUrl); else window.open(shareUrl, '_blank');
-    }
-
-    function openFiatOnRamp() {
-      const walletUrl = "https://t.me/wallet";
-      if (tg && tg.openTelegramLink) tg.openTelegramLink(walletUrl); else window.open(walletUrl, '_blank');
     }
 
     function safeBase64ToJson(b64) {
@@ -165,13 +140,11 @@
       } catch (e) { return null; }
     }
 
-    function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
+    function fmtTon(n) { return (n !== undefined && Number.isFinite(n)) ? n.toFixed(2) : "--"; }
     function parseAmount(inputValue) {
       const n = Number.parseFloat(String(inputValue ?? "").replace(",", "."));
-      if (!Number.isFinite(n)) return null;
-      return Math.round(n * 100) / 100;
+      return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
     }
-    function fmtTon(n) { return Number.isFinite(n) ? n.toFixed(2) : "--"; }
 
     function debounce(func, wait) {
       let timeout;
@@ -181,66 +154,24 @@
       };
     }
 
-    function setAppError(msg) {
-      const content = document.getElementById("content");
-      content.innerHTML = `<div class="error">${msg}</div>`;
-    }
-
-    // Вспомогательные функции парсинга TON
+    // --- ПАРСИНГ ---
     function hexToBigInt(x) {
-      if (typeof x !== "string") return null;
-      if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
-      if (/^\d+$/.test(x)) return BigInt(x);
-      return null;
+        if (typeof x !== "string") return null;
+        if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
+        return /^\d+$/.test(x) ? BigInt(x) : null;
     }
 
     function asBigIntFromElement(el) {
-      const a = el?.number?.number ?? el?.number;
-      if (a !== undefined) { try { return BigInt(String(a)); } catch {} }
-      const bi = hexToBigInt(String(el?.value ?? el?.num ?? el?.valueHex ?? ""));
-      return bi;
+        const a = el?.number?.number ?? el?.number;
+        if (a !== undefined) try { return BigInt(String(a)); } catch {}
+        return hexToBigInt(String(el?.value ?? el?.num ?? el?.valueHex ?? ""));
     }
 
-    function asBoolFromElement(el) {
-      const bi = asBigIntFromElement(el);
-      return bi === null ? null : bi !== 0n;
-    }
-
-    function extractTupleElements(stackItem) {
-      if (Array.isArray(stackItem) && stackItem.length >= 2) {
-        const elements = stackItem[1]?.elements;
-        if (Array.isArray(elements)) return elements;
-      }
-      if (stackItem && typeof stackItem === "object") {
-        const v = stackItem.value ?? stackItem.elements ?? stackItem.tuple;
-        if (Array.isArray(v)) return v;
-        if (v?.elements && Array.isArray(v.elements)) return v.elements;
-      }
-      return null;
-    }
-
-    function extractEventDataFromStack(stack) {
-      if (!Array.isArray(stack)) return null;
-      let elements = extractTupleElements(stack[0]);
-      if (!elements && stack.length >= 4) elements = stack;
-      if (!elements || elements.length < 4) return null;
-
-      const yesNano = asBigIntFromElement(elements[0]);
-      const noNano = asBigIntFromElement(elements[1]);
-      const isResolved = asBoolFromElement(elements[2]);
-      const winningOutcome = asBoolFromElement(elements[3]);
-
-      if (yesNano === null || noNano === null || isResolved === null) return null;
-      return { yesNano, noNano, isResolved, winningOutcome };
-    }
-
-    async function fetchAllEventsFromToncenter(eventIds) {
-      if (!eventIds || eventIds.length === 0) return [];
+    async function syncAllEvents(eventIds) {
+      if (!eventIds.length) return;
       const API_KEY = new URLSearchParams(window.location.search).get("api");
-      if (!API_KEY) return [];
-
       const url = `https://toncenter.com/api/v2/jsonRPC?api_key=${encodeURIComponent(API_KEY)}`;
-      const results = [];
+      
       for (let i = 0; i < eventIds.length; i += 3) {
         const chunk = eventIds.slice(i, i + 3);
         const promises = chunk.map(async (eventId) => {
@@ -250,99 +181,45 @@
               body: JSON.stringify({ id: eventId, jsonrpc: "2.0", method: "runGetMethod", params: { address: CONTRACT, method: "get_event", stack: [["num", String(eventId)]] } })
             });
             const json = await res.json();
-            const parsed = extractEventDataFromStack(json?.result?.stack);
-            if (!parsed) return { eventId, error: "parse error" };
-            return { eventId, yes: Number(parsed.yesNano)/1e9, no: Number(parsed.noNano)/1e9, total: (Number(parsed.yesNano)+Number(parsed.noNano))/1e9, isResolved: parsed.isResolved, winningOutcome: parsed.winningOutcome };
-          } catch (e) { return { eventId, error: e.message }; }
+            const s = json?.result?.stack;
+            if (!s || s.length < 4) return;
+            
+            const data = {
+                eventId,
+                yes: Number(asBigIntFromElement(s[0])) / 1e9,
+                no: Number(asBigIntFromElement(s[1])) / 1e9,
+                isResolved: asBigIntFromElement(s[2]) !== 0n,
+                winningOutcome: asBigIntFromElement(s[3]) !== 0n
+            };
+            data.total = data.yes + data.no;
+            state.set(eventId, data);
+            renderFromState(eventId);
+          } catch (e) { console.error(e); }
         });
-        results.push(...(await Promise.all(promises)));
+        await Promise.all(promises);
       }
-      return results;
-    }
-
-    async function syncAllEvents(eventIds) {
-      if (!eventIds.length) return;
-      try {
-        const dataList = await fetchAllEventsFromToncenter(eventIds);
-        dataList.forEach(data => {
-          state.set(data.eventId, { ...data, lastSyncAt: Date.now() });
-          renderFromState(data.eventId);
-        });
-      } catch (e) { console.error(e); }
     }
 
     function buildCard(event) {
       const card = document.createElement("div");
       card.className = "card";
       card.dataset.eventId = String(event.id);
-
-      const h2 = document.createElement("h2");
-      h2.textContent = event.title || `Событие #${event.id}`;
-      card.appendChild(h2);
-
-      if (event.is_private === 1) {
-        const pb = document.createElement("div");
-        pb.style.cssText = "background: #111827; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; display: inline-block; margin-bottom: 12px; text-transform: uppercase;";
-        pb.innerHTML = "🔒 Приватный спор";
-        card.appendChild(pb);
-      }
-
-      if (event.image_url) {
-        const img = document.createElement("img");
-        img.className = "event-img";
-        img.src = event.image_url;
-        card.appendChild(img);
-      }
-
-      const poll = document.createElement("div");
-      poll.className = "poll-container";
-      poll.innerHTML = `<div class="poll-yes" id="bar-y-${event.id}" style="width:50%"></div><div class="poll-no" id="bar-n-${event.id}" style="width:50%"></div>`;
-      card.appendChild(poll);
-
-      const stats = document.createElement("div");
-      stats.className = "stats-text";
-      stats.innerHTML = `<span id="txt-y-${event.id}">ДА: --</span><span id="txt-n-${event.id}">НЕТ: --</span>`;
-      card.appendChild(stats);
-
-      // БЛОК ИСТОРИИ (появится, если есть ставка)
-      const betStatus = document.createElement("div");
-      betStatus.id = `status-bet-${event.id}`;
-      card.appendChild(betStatus);
-
-      const isClosed = event.closes_at && Date.now() > event.closes_at;
-      const input = document.createElement("input");
-      input.type = "number"; input.inputMode = "decimal"; input.placeholder = "Сумма TON";
-      input.id = `am-${event.id}`;
-      if (isClosed) { input.disabled = true; input.style.opacity = "0.5"; }
+      card.innerHTML = `
+        <h2>${event.title}</h2>
+        ${event.image_url ? `<img class="event-img" src="${event.image_url}">` : ''}
+        <div class="poll-container"><div class="poll-yes" id="bar-y-${event.id}"></div><div class="poll-no" id="bar-n-${event.id}"></div></div>
+        <div class="stats-text"><span id="txt-y-${event.id}" class="skeleton" style="width:40%"></span><span id="txt-n-${event.id}" class="skeleton" style="width:40%"></span></div>
+        <div id="status-bet-${event.id}"></div>
+        <input type="number" inputmode="decimal" placeholder="Сумма TON" id="am-${event.id}">
+        <div class="hint">Мин. ${MIN_BET.toFixed(2)} TON</div>
+        <div class="win-estimate" id="est-${event.id}">Укажите сумму для прогноза</div>
+        <div class="btn-grid">
+          <button class="btn-yes" onclick="doBet(${event.id}, true)">ДА</button>
+          <button class="btn-no" onclick="doBet(${event.id}, false)">НЕТ</button>
+        </div>
+      `;
+      const input = card.querySelector('input');
       input.addEventListener("input", debounce(() => renderEstimate(event.id), 300));
-      card.appendChild(input);
-
-      const hint = document.createElement("div");
-      hint.className = "hint";
-      hint.textContent = isClosed ? "⏳ Прием закрыт" : `Мин. ${MIN_BET.toFixed(2)} TON`;
-      card.appendChild(hint);
-
-      const est = document.createElement("div");
-      est.className = "win-estimate";
-      est.id = `est-${event.id}`;
-      est.textContent = isClosed ? "Ожидание завершения" : "Укажите сумму";
-      card.appendChild(est);
-
-      const btnGrid = document.createElement("div");
-      btnGrid.className = "btn-grid";
-      const bY = document.createElement("button"); bY.className = "btn-yes"; bY.textContent = "ДА";
-      const bN = document.createElement("button"); bN.className = "btn-no"; bN.textContent = "НЕТ";
-      bY.disabled = bN.disabled = isClosed;
-      bY.onclick = () => doBet(event.id, true);
-      bN.onclick = () => doBet(event.id, false);
-      btnGrid.append(bY, bN);
-      card.appendChild(btnGrid);
-
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      meta.innerHTML = `<div id="status-${event.id}"></div><button class="share-btn" onclick="shareEvent(${event.id}, '${event.title}')">Поделиться ↗️</button>`;
-      card.appendChild(meta);
-
       return card;
     }
 
@@ -350,13 +227,17 @@
       const info = state.get(eventId);
       if (!info) return;
 
-      const yP = info.total > 0 ? Math.round((info.yes / info.total) * 100) : 50;
+      const total = info.total || 0;
+      const yP = total > 0 ? Math.round((info.yes / total) * 100) : 50;
+      
+      const txtY = document.getElementById(`txt-y-${eventId}`);
+      const txtN = document.getElementById(`txt-n-${eventId}`);
+      if (txtY) { txtY.classList.remove('skeleton'); txtY.textContent = `ДА: ${yP}% (${fmtTon(info.yes)} T)`; }
+      if (txtN) { txtN.classList.remove('skeleton'); txtN.textContent = `НЕТ: ${100-yP}% (${fmtTon(info.no)} T)`; }
+      
       document.getElementById(`bar-y-${eventId}`).style.width = `${yP}%`;
       document.getElementById(`bar-n-${eventId}`).style.width = `${100-yP}%`;
-      document.getElementById(`txt-y-${eventId}`).textContent = `ДА: ${yP}% (${fmtTon(info.yes)} T)`;
-      document.getElementById(`txt-n-${eventId}`).textContent = `НЕТ: ${100-yP}% (${fmtTon(info.no)} T)`;
 
-      // ПРОВЕРКА ИСТОРИИ
       const myBet = userBets.find(b => b.event_id === eventId);
       const sBet = document.getElementById(`status-bet-${eventId}`);
       if (myBet && sBet) {
@@ -373,66 +254,68 @@
       } else if (info.isResolved) {
           setCardResolved(eventId, info.winningOutcome);
       }
+      renderEstimate(eventId);
     }
 
-    function setCardResolved(eventId, winningOutcome) {
-      const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
-      if (!card) return;
-      card.querySelectorAll("button").forEach(b => b.disabled = true);
-      const input = document.getElementById(`am-${eventId}`);
-      if (input) { input.disabled = true; input.style.opacity = "0.5"; }
-      const est = document.getElementById(`est-${eventId}`);
-      if (est) est.innerHTML = `Событие завершено: <b>${winningOutcome ? "ДА" : "НЕТ"}</b>`;
+    function setCardResolved(eventId, win) {
+        const card = document.querySelector(`.card[data-event-id="${eventId}"]`);
+        if (!card) return;
+        card.querySelectorAll("button").forEach(b => b.disabled = true);
+        const input = document.getElementById(`am-${eventId}`);
+        if (input) { input.disabled = true; input.style.opacity = "0.5"; }
+        const est = document.getElementById(`est-${eventId}`);
+        if (est) est.innerHTML = `Завершено: <b>${win ? "ДА" : "НЕТ"}</b>`;
     }
 
     function renderEstimate(eventId) {
       const info = state.get(eventId);
-      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
       const est = document.getElementById(`est-${eventId}`);
-      if (!est || !info || info.isResolved || !amount || amount < MIN_BET) return;
-      
+      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
+      if (!est || !info || info.isResolved) return;
+      if (!amount || amount < MIN_BET) { est.textContent = "Укажите сумму для прогноза"; return; }
+
+      if (info.total === 0) {
+        est.innerHTML = "✨ <b>Вы первый!</b> Пул проигравших достанется вам.";
+        return;
+      }
       const fee = 0.9;
       const wY = amount + (amount / (info.yes + amount)) * (info.no * fee);
       const wN = amount + (amount / (info.no + amount)) * (info.yes * fee);
       est.innerHTML = `Победа <b>ДА</b>: ~${wY.toFixed(2)} T | <b>НЕТ</b>: ~${wN.toFixed(2)} T`;
     }
 
-    async function doBet(eventId, outcome) {
-      const amount = parseAmount(document.getElementById(`am-${eventId}`)?.value);
-      if (!amount || amount < MIN_BET) return;
+    async function doBet(id, out) {
+      const am = parseAmount(document.getElementById(`am-${id}`)?.value);
+      if (!am || am < MIN_BET) return;
       if (!tonConnectUI.connected) { tonConnectUI.connectWallet(); return; }
       try {
         const cell = new TonWeb.boc.Cell();
-        cell.bits.writeUint(0x336af5ef, 32); cell.bits.writeUint(eventId, 64); cell.bits.writeUint(outcome ? 1 : 0, 1);
-        const boc = await cell.toBoc();
+        cell.bits.writeUint(0x336af5ef, 32); cell.bits.writeUint(id, 64); cell.bits.writeUint(out ? 1 : 0, 1);
         await tonConnectUI.sendTransaction({
           validUntil: Math.floor(Date.now()/1000)+360,
-          messages: [{ address: CONTRACT, amount: Math.floor((amount+BET_NETWORK_FEE)*1e9).toString(), payload: TonWeb.utils.bytesToBase64(boc) }]
+          messages: [{ address: CONTRACT, amount: Math.floor((am+BET_NETWORK_FEE)*1e9).toString(), payload: TonWeb.utils.bytesToBase64(await cell.toBoc()) }]
         });
       } catch (e) { console.error(e); }
     }
 
     function renderApp(root) {
       if (currentTab === "main") {
-          const filterBar = buildFilters(root);
-          root.appendChild(filterBar);
-          const activeList = eventList.filter(ev => activeCategory === "all" || ev.category === activeCategory);
-          if (activeList.length === 0) { root.innerHTML += '<div class="loading">Нет событий</div>'; return; }
-          activeList.forEach(ev => root.appendChild(buildCard(ev)));
-          syncAllEvents(activeList.map(e => e.id));
+          root.appendChild(buildFilters(root));
+          const list = eventList.filter(ev => activeCategory === "all" || ev.category === activeCategory);
+          list.forEach(ev => root.appendChild(buildCard(ev)));
+          syncAllEvents(list.map(e => e.id));
       } else {
-          const historyList = eventList.filter(ev => userBets.some(b => b.event_id === ev.id));
-          if (historyList.length === 0) { root.innerHTML = '<div class="loading">У вас еще нет ставок</div>'; return; }
-          historyList.forEach(ev => root.appendChild(buildCard(ev)));
-          syncAllEvents(historyList.map(e => e.id));
+          const hist = eventList.filter(ev => userBets.some(b => b.event_id === ev.id));
+          if (!hist.length) { root.innerHTML = '<div class="loading">У вас еще нет ставок</div>'; return; }
+          hist.forEach(ev => root.appendChild(buildCard(ev)));
+          syncAllEvents(hist.map(e => e.id));
       }
     }
 
     function buildFilters(container) {
       const bar = document.createElement("div"); bar.className = "filters";
-      const cats = new Set(eventList.map(e => e.category).filter(Boolean));
       const chips = [{ key: "all", label: "Все" }];
-      cats.forEach(c => chips.push({ key: c, label: CATEGORY_LABELS[c] || c }));
+      new Set(eventList.map(e => e.category).filter(Boolean)).forEach(c => chips.push({ key: c, label: CATEGORY_LABELS[c] || c }));
       chips.forEach(ch => {
         const el = document.createElement("div");
         el.className = "chip" + (ch.key === activeCategory ? " active" : "");
@@ -443,18 +326,15 @@
       return bar;
     }
 
+    function openFiatOnRamp() { window.open("https://t.me/wallet", '_blank'); }
+
     (function main() {
       const params = new URLSearchParams(window.location.search);
       const decoded = safeBase64ToJson(params.get("payload"));
-      if (!decoded) { setAppError("Данные не найдены"); return; }
-      
-      eventList = decoded.events || [];
-      userBets = decoded.userBets || [];
-      
+      if (!decoded) { document.getElementById("content").innerHTML = '<div class="error">Данные не найдены</div>'; return; }
+      eventList = decoded.events || []; userBets = decoded.userBets || [];
       const content = document.getElementById("content");
-      content.innerHTML = "";
-      renderApp(content);
-      
+      content.innerHTML = ""; renderApp(content);
       refreshTimer = setInterval(() => {
           const ids = Array.from(document.querySelectorAll('.card')).map(c => Number(c.dataset.eventId));
           if (ids.length) syncAllEvents(ids);
