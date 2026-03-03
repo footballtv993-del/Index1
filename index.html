@@ -11,7 +11,6 @@
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    /* Добавлен padding-bottom чтобы контент не скрывался под меню */
     body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; padding: 15px; padding-bottom: 80px; margin: 0; display: flex; flex-direction: column; align-items: center; }
     #app { width: 100%; max-width: 420px; }
 
@@ -72,7 +71,6 @@
     .error { color: #b42318; background:#fff; border-radius: 18px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
     .success { color: #067647; }
 
-    /* === СТИЛИ НОВЫХ ВКЛАДОК === */
     .bottom-nav {
        position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex;
        box-shadow: 0 -4px 15px rgba(0,0,0,0.06); padding-bottom: env(safe-area-inset-bottom);
@@ -87,7 +85,6 @@
     
     .history-card, .archive-card { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); }
     
-    /* Подсветка истории ставок */
     .bet-won { border-left: 5px solid #34c759; }
     .bet-lost { border-left: 5px solid #ff3b30; opacity: 0.8; }
     .bet-pending { border-left: 5px solid #f59e0b; }
@@ -148,8 +145,7 @@
     const MIN_BET = 0.20;
     const BET_NETWORK_FEE = 0.05;
 
-    // ВПИШИ СЮДА ЮЗЕРНЕЙМ СВОЕГО БОТА (Без @)
-    const BOT_USERNAME = "hypeoracle_bot";
+    const BOT_USERNAME = "hypeoracle_bot"; // Твой бот
 
     const CATEGORY_LABELS = {
       sport: "Спорт",
@@ -210,7 +206,6 @@
       content.innerHTML = `<div class="error">${msg}</div>`;
     }
 
-    // --- Функции парсинга смарт-контракта ---
     function hexToBigInt(x) {
       if (typeof x !== "string") return null;
       if (x.startsWith("0x") || x.startsWith("0X")) return BigInt(x);
@@ -364,7 +359,6 @@
       }
     }
 
-    // --- Рендер контента ---
     function buildFilters(container) {
       const bar = document.createElement("div");
       bar.className = "filters";
@@ -606,7 +600,19 @@
         };
 
         await tonConnectUI.sendTransaction(transaction);
-        setSending(eventId, false, "✅ Ставка успешно отправлена!");
+        setSending(eventId, false, "✅ Транзакция отправлена в кошелек!");
+        
+        // Редирект в бота для сохранения истории
+        setTimeout(() => {
+          const outcomeInt = outcome ? 1 : 0;
+          const deepLink = `https://t.me/${BOT_USERNAME}?start=bet_${eventId}_${outcomeInt}`;
+          if (tg && tg.openTelegramLink) {
+            tg.openTelegramLink(deepLink);
+          } else {
+            window.location.href = deepLink;
+          }
+        }, 1500);
+
       } catch (e) {
         if (e.message && e.message.includes("User rejects")) {
           setSending(eventId, false, "❌ Вы отменили транзакцию");
@@ -616,9 +622,40 @@
       }
     }
 
+    // НОВАЯ ФУНКЦИЯ: Запрос выплаты выигрыша
+    async function doClaim(eventId) {
+      if (!tonConnectUI.connected) {
+        alert("Подключите кошелек в шапке ⬆️");
+        tonConnectUI.connectWallet(); return;
+      }
+
+      try {
+        const cell = new TonWeb.boc.Cell();
+        cell.bits.writeUint(0x9fa5f744, 32); // Опкод Claim
+        cell.bits.writeUint(eventId, 64);
+        
+        const bocBytes = await cell.toBoc();
+        const payloadBase64 = TonWeb.utils.bytesToBase64(bocBytes);
+        const amountNano = Math.floor(0.05 * 1e9).toString(); // На оплату газа
+
+        const transaction = {
+          validUntil: Math.floor(Date.now() / 1000) + 360, 
+          messages: [{ address: CONTRACT, amount: amountNano, payload: payloadBase64 }]
+        };
+
+        await tonConnectUI.sendTransaction(transaction);
+        alert("✅ Запрос отправлен! Выигрыш скоро поступит на кошелек.");
+      } catch (e) {
+        if (e.message && e.message.includes("User rejects")) {
+          alert("❌ Вы отменили транзакцию");
+        } else {
+          alert("❌ Ошибка отправки");
+        }
+      }
+    }
+
     function clearTimer() { if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; } }
 
-    // --- Логика вкладок ---
     window.switchTab = function(tabId) {
        currentTab = tabId;
        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -678,12 +715,19 @@
         card.className = `history-card ${statusClass}`;
         const predicted = bet.outcome === 1 ? 'ДА' : 'НЕТ';
         
+        let claimButtonHtml = '';
+        // Если статус = победа, показываем кнопку выплаты
+        if (bet.win_status === 1) {
+          claimButtonHtml = `<button onclick="doClaim(${bet.event_id})" style="margin-top: 12px; width: 100%; padding: 10px; border-radius: 12px; background: #34c759; box-shadow: 0 3px 0 #28a745; font-size: 14px;">💰 Забрать выигрыш</button>`;
+        }
+
         card.innerHTML = `
           <div style="font-size: 15px; font-weight: 800; margin-bottom: 10px; color: #111827;">${bet.title || 'Событие #' + bet.event_id}</div>
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
             <div style="color: #4b5563;">Ваш прогноз: <b style="color:#000;">${predicted}</b></div>
             ${badgeHtml}
           </div>
+          ${claimButtonHtml}
         `;
         root.appendChild(card);
       });
@@ -719,7 +763,6 @@
       });
     }
 
-    // === ГЛАВНАЯ ИНИЦИАЛИЗАЦИЯ ===
     (function main() {
       const params = new URLSearchParams(window.location.search);
       let b64Data = params.get("payload");
@@ -738,7 +781,6 @@
 
       try {
         const parsed = safeBase64ToJson(b64Data);
-        // Поддержка старого формата, если вдруг бот не успел обновиться
         if (Array.isArray(parsed)) appData = { events: parsed, archive: [], userBets: [] };
         else appData = parsed;
       } catch {
